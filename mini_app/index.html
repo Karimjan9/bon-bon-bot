@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bon Bon Mini App</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero">
+        <p class="eyebrow">Bon Bon Bot</p>
+        <h1>Shirin buyurtmani Telegram ichida boshlang.</h1>
+        <p class="lead">
+          Bu mini ilova botga test ma'lumot yuborish uchun tayyorlangan
+          boshlang'ich sahifa.
+        </p>
+      </section>
+
+      <section class="card">
+        <label for="product">Mahsulot</label>
+        <select id="product">
+          <option value="classic-bonbon">Classic Bon Bon</option>
+          <option value="choco-box">Choco Box</option>
+          <option value="gift-set">Gift Set</option>
+        </select>
+
+        <label for="quantity">Soni</label>
+        <div class="quantity-row">
+          <button type="button" id="decrement">-</button>
+          <input id="quantity" min="1" type="number" value="1" />
+          <button type="button" id="increment">+</button>
+        </div>
+
+        <label for="note">Izoh</label>
+        <textarea id="note" placeholder="Masalan: sovg'a qutisi kerak"></textarea>
+
+        <button class="primary-button" id="send-order" type="button">
+          Botga yuborish
+        </button>
+      </section>
+
+      <p class="status" id="status">Mini app tayyor.</p>
+
+      <section class="admin-card is-hidden" id="admin-panel">
+        <div class="admin-heading">
+          <div>
+            <p class="eyebrow">Admin</p>
+            <h2>Buyurtmalar boshqaruvi</h2>
+          </div>
+          <button class="ghost-button" id="refresh-orders" type="button">
+            Yangilash
+          </button>
+        </div>
+
+        <div class="stats-grid" id="stats-grid">
+          <div>
+            <span>Jami</span>
+            <strong id="stat-total">0</strong>
+          </div>
+          <div>
+            <span>Yangi</span>
+            <strong id="stat-new">0</strong>
+          </div>
+          <div>
+            <span>Jarayonda</span>
+            <strong id="stat-processing">0</strong>
+          </div>
+          <div>
+            <span>Daromad</span>
+            <strong id="stat-revenue">0</strong>
+          </div>
+        </div>
+
+        <div class="admin-login" id="admin-login">
+          <label for="admin-key">Local admin kalit</label>
+          <div class="admin-login-row">
+            <input id="admin-key" type="password" placeholder="ADMIN_KEY" />
+            <button class="ghost-button" id="save-admin-key" type="button">
+              Kirish
+            </button>
+          </div>
+          <p class="hint">
+            Telegram ichida admin avtomatik aniqlanadi. Brauzerda test uchun
+            `.env` dagi `ADMIN_KEY`ni kiriting.
+          </p>
+        </div>
+
+        <p class="status" id="admin-status">Admin panel tayyorlanmoqda.</p>
+        <div class="orders-list" id="orders-list"></div>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
