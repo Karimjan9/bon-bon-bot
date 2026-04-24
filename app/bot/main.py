@@ -3,7 +3,7 @@ import json
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import Command, CommandStart
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 
 from app.bot.keyboards import main_keyboard
 from app.config import get_settings
@@ -27,37 +27,36 @@ async def start_handler(message: Message) -> None:
         resize_keyboard=True
     )
 
-    await message.answer("Tilni tanlang / Выберите язык / Choose language:", reply_markup=kb)
+    await message.answer(
+        "Tilni tanlang / Выберите язык / Choose language:",
+        reply_markup=kb
+    )
 
 
 # =========================
 # 🌍 LANGUAGE HANDLER
 # =========================
-@router.message()
+@router.message(F.text.in_({"🇺🇿 O'zbekcha", "🇷🇺 Русский", "🇬🇧 English"}))
 async def language_handler(message: Message) -> None:
-    text = message.text
     settings = get_settings()
+    text = message.text
+
+    await message.answer(
+        "Til muvaffaqiyatli tanlandi! 👍",
+        reply_markup=ReplyKeyboardRemove()
+    )
 
     if text == "🇺🇿 O'zbekcha":
-        await message.answer(
-            "🇺🇿 Xush kelibsiz BonBon Kafe!",
-            reply_markup=main_keyboard(settings.web_app_url)
-        )
-
+        await message.answer("🇺🇿 Xush kelibsiz BonBon Kafe!")
     elif text == "🇷🇺 Русский":
-        await message.answer(
-            "🇷🇺 Добро пожаловать в BonBon Cafe!",
-            reply_markup=main_keyboard(settings.web_app_url)
-        )
-
+        await message.answer("🇷🇺 Добро пожаловать в BonBon Cafe!")
     elif text == "🇬🇧 English":
-        await message.answer(
-            "🇬🇧 Welcome to BonBon Cafe!",
-            reply_markup=main_keyboard(settings.web_app_url)
-        )
+        await message.answer("🇬🇧 Welcome to BonBon Cafe!")
 
-    elif text and text.lower() == "yordam":
-        await help_handler(message)
+    await message.answer(
+        "📲 Menyuni ochish uchun pastdagi tugmani bosing:",
+        reply_markup=main_keyboard(settings.web_app_url)
+    )
 
 
 # =========================
@@ -91,21 +90,6 @@ async def web_app_data_handler(message: Message) -> None:
         f"🧾 ID: #{order.id}\n"
         f"🍔 Mahsulotlar: {items_text}\n"
         f"💰 Jami: {order.total_amount} {order.currency}"
-    )
-
-
-# =========================
-# ❓ HELP
-# =========================
-@router.message(F.text.casefold() == "yordam")
-async def help_handler(message: Message) -> None:
-    settings = get_settings()
-    await message.answer(
-        "📌 Bot buyruqlari:\n"
-        "/start - boshlash\n"
-        "/id - Telegram ID\n"
-        "Mini ilova - menyu ochish\n\n"
-        f"🌐 WEB_APP: {settings.web_app_url}"
     )
 
 

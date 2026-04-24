@@ -12,14 +12,18 @@ from app.db.session import engine
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 
+SCHEMA_REVISION_BEFORE_GUESTS = "20260423_0001"
+
 REQUIRED_APP_TABLES = {
     "telegram_users",
+    "guests",
     "product_categories",
     "products",
     "orders",
     "order_items",
     "admin_audit_logs",
 }
+LEGACY_APP_TABLES = REQUIRED_APP_TABLES - {"guests"}
 
 
 @dataclass(frozen=True)
@@ -57,6 +61,13 @@ async def ensure_schema_ready() -> SchemaCheckResult:
             missing_tables=set(),
         )
 
+    if (
+        missing_tables == {"guests"}
+        and LEGACY_APP_TABLES.issubset(existing_tables)
+        and "alembic_version" not in existing_tables
+    ):
+        await asyncio.to_thread(stamp_alembic_revision, SCHEMA_REVISION_BEFORE_GUESTS)
+
     await engine.dispose()
     await asyncio.to_thread(run_alembic_upgrade)
 
@@ -79,6 +90,11 @@ async def ensure_schema_ready() -> SchemaCheckResult:
 def run_alembic_upgrade() -> None:
     config = Config(str(BASE_DIR / "alembic.ini"))
     command.upgrade(config, "head")
+
+
+def stamp_alembic_revision(revision: str) -> None:
+    config = Config(str(BASE_DIR / "alembic.ini"))
+    command.stamp(config, revision)
 
 
 def ensure_database_exists() -> None:
