@@ -1,97 +1,170 @@
 <!doctype html>
 <html lang="uz">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Bon Bon Mini App</title>
-    <link rel="stylesheet" href="/static/styles.css" />
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  </head>
-  <body>
-    <main class="app-shell">
-      <section class="hero">
-        <p class="eyebrow">Bon Bon Bot</p>
-        <h1>Shirin buyurtmani Telegram ichida boshlang.</h1>
-        <p class="lead">
-          Bu mini ilova botga test ma'lumot yuborish uchun tayyorlangan
-          boshlang'ich sahifa.
-        </p>
-      </section>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BonBon Cafe</title>
 
-      <section class="card">
-        <label for="product">Mahsulot</label>
-        <select id="product">
-          <option value="classic-bonbon">Classic Bon Bon</option>
-          <option value="choco-box">Choco Box</option>
-          <option value="gift-set">Gift Set</option>
-        </select>
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-        <label for="quantity">Soni</label>
-        <div class="quantity-row">
-          <button type="button" id="decrement">-</button>
-          <input id="quantity" min="1" type="number" value="1" />
-          <button type="button" id="increment">+</button>
-        </div>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #fff;
+    }
 
-        <label for="note">Izoh</label>
-        <textarea id="note" placeholder="Masalan: sovg'a qutisi kerak"></textarea>
+    .app-shell {
+      max-width: 420px;
+      margin: auto;
+      padding: 15px;
+    }
 
-        <button class="primary-button" id="send-order" type="button">
-          Botga yuborish
-        </button>
-      </section>
+    .hero {
+      text-align: center;
+      margin-bottom: 20px;
+    }
 
-      <p class="status" id="status">Mini app tayyor.</p>
+    .eyebrow {
+      color: #38bdf8;
+      font-size: 12px;
+    }
 
-      <section class="admin-card is-hidden" id="admin-panel">
-        <div class="admin-heading">
-          <div>
-            <p class="eyebrow">Admin</p>
-            <h2>Buyurtmalar boshqaruvi</h2>
-          </div>
-          <button class="ghost-button" id="refresh-orders" type="button">
-            Yangilash
-          </button>
-        </div>
+    h1 {
+      font-size: 20px;
+      margin: 10px 0;
+    }
 
-        <div class="stats-grid" id="stats-grid">
-          <div>
-            <span>Jami</span>
-            <strong id="stat-total">0</strong>
-          </div>
-          <div>
-            <span>Yangi</span>
-            <strong id="stat-new">0</strong>
-          </div>
-          <div>
-            <span>Jarayonda</span>
-            <strong id="stat-processing">0</strong>
-          </div>
-          <div>
-            <span>Daromad</span>
-            <strong id="stat-revenue">0</strong>
-          </div>
-        </div>
+    .lead {
+      font-size: 13px;
+      opacity: 0.8;
+    }
 
-        <div class="admin-login" id="admin-login">
-          <label for="admin-key">Local admin kalit</label>
-          <div class="admin-login-row">
-            <input id="admin-key" type="password" placeholder="ADMIN_KEY" />
-            <button class="ghost-button" id="save-admin-key" type="button">
-              Kirish
-            </button>
-          </div>
-          <p class="hint">
-            Telegram ichida admin avtomatik aniqlanadi. Brauzerda test uchun
-            `.env` dagi `ADMIN_KEY`ni kiriting.
-          </p>
-        </div>
+    .card {
+      background: #1e293b;
+      padding: 15px;
+      border-radius: 12px;
+    }
 
-        <p class="status" id="admin-status">Admin panel tayyorlanmoqda.</p>
-        <div class="orders-list" id="orders-list"></div>
-      </section>
-    </main>
+    label {
+      display: block;
+      margin-top: 10px;
+      font-size: 13px;
+    }
 
-    <script src="/static/app.js"></script>
-  </body>
+    select, input, textarea {
+      width: 100%;
+      margin-top: 5px;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      background: #0f172a;
+      color: white;
+    }
+
+    .quantity-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    button {
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+    }
+
+    #increment, #decrement {
+      width: 40px;
+      background: #334155;
+      color: white;
+    }
+
+    .primary-button {
+      margin-top: 15px;
+      width: 100%;
+      background: #22c55e;
+      color: white;
+      font-weight: bold;
+    }
+
+    .status {
+      text-align: center;
+      font-size: 12px;
+      margin-top: 10px;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+
+<body>
+
+<main class="app-shell">
+
+  <!-- HERO -->
+  <section class="hero">
+    <p class="eyebrow">🍔 BonBon Cafe</p>
+    <h1>Shirin va mazali buyurtmalarni tanlang</h1>
+    <p class="lead">
+      Telegram ichida tez va oson buyurtma bering 🚀
+    </p>
+  </section>
+
+  <!-- ORDER CARD -->
+  <section class="card">
+
+    <label>Mahsulot</label>
+    <select id="product">
+      <option>🍔 Burger</option>
+      <option>🍕 Pizza</option>
+      <option>🍰 Tort</option>
+      <option>☕ Coffee</option>
+    </select>
+
+    <label>Soni</label>
+    <div class="quantity-row">
+      <button id="decrement">-</button>
+      <input id="quantity" type="number" value="1" min="1">
+      <button id="increment">+</button>
+    </div>
+
+    <label>Izoh</label>
+    <textarea id="note" placeholder="Masalan: achchiqsiz bo‘lsin"></textarea>
+
+    <button class="primary-button" id="send-order">
+      📲 Buyurtma yuborish
+    </button>
+
+  </section>
+
+  <p class="status" id="status">BonBon tayyor 🍔</p>
+
+</main>
+
+<script>
+  const tg = window.Telegram.WebApp;
+  tg.expand();
+
+  const qty = document.getElementById("quantity");
+
+  document.getElementById("increment").onclick = () => qty.value++;
+  document.getElementById("decrement").onclick = () => {
+    if (qty.value > 1) qty.value--;
+  };
+
+  document.getElementById("send-order").onclick = () => {
+    const data = {
+      product: document.getElementById("product").value,
+      quantity: qty.value,
+      note: document.getElementById("note").value
+    };
+
+    tg.sendData(JSON.stringify(data));
+  };
+</script>
+
+</body>
 </html>
