@@ -24,6 +24,28 @@ const statRevenue = document.querySelector("#stat-revenue");
 
 let adminKey = window.localStorage.getItem("bonbon_admin_key") || "";
 let isAdmin = false;
+let contactRequestStarted = false;
+
+function requestTelegramContact() {
+  if (!telegram || contactRequestStarted) {
+    return;
+  }
+
+  if (window.localStorage.getItem("bonbon_contact_requested") === "1") {
+    return;
+  }
+
+  if (typeof telegram.requestContact !== "function") {
+    return;
+  }
+
+  contactRequestStarted = true;
+  telegram.requestContact((isSent) => {
+    if (isSent) {
+      window.localStorage.setItem("bonbon_contact_requested", "1");
+    }
+  });
+}
 
 async function loadCatalog() {
   try {
@@ -255,3 +277,4 @@ ordersList.addEventListener("click", async (event) => {
 
 checkAdmin();
 loadCatalog();
+requestTelegramContact();

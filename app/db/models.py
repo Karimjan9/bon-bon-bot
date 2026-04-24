@@ -37,6 +37,19 @@ class TelegramUser(TimestampMixin, Base):
     orders: Mapped[list["Order"]] = relationship(back_populates="user")
 
 
+class Guest(TimestampMixin, Base):
+    __tablename__ = "guests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
+    contact_user_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+    phone_number: Mapped[str] = mapped_column(String(64), nullable=False)
+    username: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    first_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    last_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    language_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
+
+
 class ProductCategory(TimestampMixin, Base):
     __tablename__ = "product_categories"
 
