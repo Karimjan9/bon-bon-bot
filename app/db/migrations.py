@@ -1,29 +1,28 @@
 import asyncio
 from dataclasses import dataclass
-from pathlib import Path
 
 import pymysql
-from alembic import command
-from alembic.config import Config
 from sqlalchemy import text
 
 from app.config import get_settings
+from app.db.models import Base
 from app.db.session import engine
-
-BASE_DIR = Path(__file__).resolve().parents[2]
-
-SCHEMA_REVISION_BEFORE_GUESTS = "20260423_0001"
 
 REQUIRED_APP_TABLES = {
     "telegram_users",
     "guests",
     "product_categories",
     "products",
+    "categories",
+    "menu_items",
+    "menu_item_variants",
+    "menu_item_addons",
+    "menu_item_addon_groups",
+    "menu_item_addon_group_items",
     "orders",
     "order_items",
     "admin_audit_logs",
 }
-LEGACY_APP_TABLES = REQUIRED_APP_TABLES - {"guests"}
 
 
 @dataclass(frozen=True)
@@ -61,15 +60,7 @@ async def ensure_schema_ready() -> SchemaCheckResult:
             missing_tables=set(),
         )
 
-    if (
-        missing_tables == {"guests"}
-        and LEGACY_APP_TABLES.issubset(existing_tables)
-        and "alembic_version" not in existing_tables
-    ):
-        await asyncio.to_thread(stamp_alembic_revision, SCHEMA_REVISION_BEFORE_GUESTS)
-
-    await engine.dispose()
-    await asyncio.to_thread(run_alembic_upgrade)
+    await create_missing_tables()
 
     existing_tables = await get_existing_tables()
     missing_tables = REQUIRED_APP_TABLES - existing_tables
@@ -87,14 +78,9 @@ async def ensure_schema_ready() -> SchemaCheckResult:
     )
 
 
-def run_alembic_upgrade() -> None:
-    config = Config(str(BASE_DIR / "alembic.ini"))
-    command.upgrade(config, "head")
-
-
-def stamp_alembic_revision(revision: str) -> None:
-    config = Config(str(BASE_DIR / "alembic.ini"))
-    command.stamp(config, revision)
+async def create_missing_tables() -> None:
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all, checkfirst=True)
 
 
 def ensure_database_exists() -> None:

@@ -97,6 +97,13 @@
       margin-top: 10px;
       opacity: 0.7;
     }
+
+    .admin-card {
+      margin-top: 20px;
+      background: #1e293b;
+      padding: 15px;
+      border-radius: 12px;
+    }
   </style>
 </head>
 
@@ -108,9 +115,7 @@
   <section class="hero">
     <p class="eyebrow">🍔 BonBon Cafe</p>
     <h1>Shirin va mazali buyurtmalarni tanlang</h1>
-    <p class="lead">
-      Telegram ichida tez va oson buyurtma bering 🚀
-    </p>
+    <p class="lead">Telegram ichida tez va oson buyurtma bering 🚀</p>
   </section>
 
   <!-- ORDER CARD -->
@@ -138,6 +143,14 @@
       📲 Buyurtma yuborish
     </button>
 
+  </section>
+
+  <!-- ADMIN PANEL -->
+  <section class="admin-card" id="admin-panel">
+    <h2>Admin Panel</h2>
+    <input type="password" id="admin-key" placeholder="ADMIN_KEY">
+    <button id="save-admin-key">Kirish</button>
+    <p class="status">Admin panel tayyorlanmoqda...</p>
   </section>
 
   <p class="status" id="status">BonBon tayyor 🍔</p>
