@@ -197,6 +197,23 @@ function authHeaders() {
   return headers;
 }
 
+function requestTelegramContact() {
+  if (!telegram?.requestContact) {
+    return;
+  }
+
+  const storageKey = "bonbon_contact_requested";
+  if (window.localStorage.getItem(storageKey)) {
+    return;
+  }
+
+  telegram.requestContact((isShared) => {
+    if (isShared) {
+      window.localStorage.setItem(storageKey, "1");
+    }
+  });
+}
+
 async function postOrderFallback(payload) {
   const response = await fetch("/api/orders", {
     method: "POST",

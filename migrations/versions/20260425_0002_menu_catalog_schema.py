@@ -1,7 +1,7 @@
 """Add menu catalog schema.
 
 Revision ID: 20260425_0002
-Revises: 20260423_0001
+Revises: 20260424_0002
 Create Date: 2026-04-25
 """
 
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "20260425_0002"
-down_revision: str | None = "20260423_0001"
+down_revision: str | None = "20260424_0002"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
