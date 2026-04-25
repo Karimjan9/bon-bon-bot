@@ -44,6 +44,83 @@ class ProductRead(BaseModel):
     category: ProductCategoryRead | None = None
 
 
+class CategoryRead(BaseModel):
+    id: int
+    name: str
+    description: str | None = None
+    image_url: str | None = None
+    sort_order: int
+    is_active: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class MenuItemVariantRead(BaseModel):
+    id: int
+    menu_item_id: int
+    name: str
+    price: Decimal
+    weight_grams: int | None = None
+    is_default: bool
+    is_available: bool
+    sort_order: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class MenuItemAddonRead(BaseModel):
+    id: int
+    name: str
+    description: str | None = None
+    price: Decimal
+    is_available: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class MenuItemAddonGroupItemRead(BaseModel):
+    id: int
+    addon_group_id: int
+    addon_id: int
+    addon: MenuItemAddonRead
+    sort_order: int
+    created_at: datetime
+
+
+class MenuItemAddonGroupRead(BaseModel):
+    id: int
+    menu_item_id: int
+    name: str
+    min_select: int
+    max_select: int
+    is_required: bool
+    sort_order: int
+    items: list[MenuItemAddonGroupItemRead] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+
+
+class MenuItemRead(BaseModel):
+    id: int
+    category_id: int
+    category: CategoryRead
+    name: str
+    description: str | None = None
+    base_price: Decimal
+    image_url: str | None = None
+    is_available: bool
+    is_popular: bool
+    is_new: bool
+    sort_order: int
+    preparation_time_minutes: int | None = None
+    calories: int | None = None
+    weight_grams: int | None = None
+    variants: list[MenuItemVariantRead] = Field(default_factory=list)
+    addon_groups: list[MenuItemAddonGroupRead] = Field(default_factory=list)
+    created_at: datetime
+    updated_at: datetime
+
+
 class OrderItemRead(BaseModel):
     product_title: str
     product_slug: str

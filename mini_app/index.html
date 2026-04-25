@@ -9,6 +9,44 @@
   </head>
   <body>
     <main class="app-shell">
+      <header class="app-header" aria-label="Mini app yuqori menyusi">
+        <a class="brand" href="/" aria-label="Bon-Bon bosh sahifa">
+          <span class="brand-mark" aria-hidden="true">
+            <span>BB</span>
+          </span>
+          <span class="brand-name">Bon-Bon</span>
+        </a>
+
+        <div class="header-actions">
+          <button class="icon-button" id="language-toggle" type="button" aria-label="Tilni o'zgartirish">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M5 4h8M9 4v3m5 0H4m2 0c.8 2.8 2.4 5.1 5 7m-3.5 0c2.1-1.4 3.7-3.6 4.5-7M13 20l4-9 4 9m-6.7-3h5.4" />
+            </svg>
+            <span id="language-label">UZ</span>
+          </button>
+          <button class="icon-button" id="search-toggle" type="button" aria-label="Qidirish">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m21 21-4.3-4.3M19 11a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z" />
+            </svg>
+          </button>
+          <button
+            class="icon-button profile-button"
+            id="user-login-toggle"
+            type="button"
+            aria-controls="admin-panel"
+            aria-label="Profil va admin kirish"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <form class="search-bar is-hidden" id="search-bar" role="search">
+        <input id="product-search" type="search" placeholder="Mahsulot qidirish" autocomplete="off" />
+      </form>
+
       <section class="hero">
         <p class="eyebrow">Bon Bon Bot</p>
         <h1>Shirin buyurtmani Telegram ichida boshlang.</h1>
@@ -44,51 +82,96 @@
       <p class="status" id="status">Mini app tayyor.</p>
 
       <section class="admin-card is-hidden" id="admin-panel">
-        <div class="admin-heading">
-          <div>
-            <p class="eyebrow">Admin</p>
-            <h2>Buyurtmalar boshqaruvi</h2>
+        <aside class="admin-sidebar" aria-label="Admin menu">
+          <div class="admin-brand">
+            <span class="admin-brand-mark" aria-hidden="true">
+              <span>BB</span>
+            </span>
+            <div>
+              <strong>Bon-Bon</strong>
+              <span>Admin</span>
+            </div>
           </div>
-          <button class="ghost-button" id="refresh-orders" type="button">
-            Yangilash
+
+          <button
+            class="admin-menu-toggle"
+            id="admin-menu-toggle"
+            type="button"
+            aria-expanded="false"
+            aria-controls="admin-menu-list"
+          >
+            <span>Menu</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m6 9 6 6 6-6" />
+            </svg>
           </button>
-        </div>
 
-        <div class="stats-grid" id="stats-grid">
-          <div>
-            <span>Jami</span>
-            <strong id="stat-total">0</strong>
-          </div>
-          <div>
-            <span>Yangi</span>
-            <strong id="stat-new">0</strong>
-          </div>
-          <div>
-            <span>Jarayonda</span>
-            <strong id="stat-processing">0</strong>
-          </div>
-          <div>
-            <span>Daromad</span>
-            <strong id="stat-revenue">0</strong>
-          </div>
-        </div>
+          <nav class="admin-menu is-collapsed" id="admin-menu-list" aria-label="Admin bo'limlari">
+            <button class="admin-nav-button is-active" data-admin-view="orders" type="button">
+              Buyurtmalar
+            </button>
+            <button class="admin-nav-button" data-admin-view="stats" type="button">
+              Statistika
+            </button>
+            <button class="admin-nav-button" id="refresh-orders" type="button">
+              Yangilash
+            </button>
+          </nav>
 
-        <div class="admin-login" id="admin-login">
-          <label for="admin-key">Local admin kalit</label>
-          <div class="admin-login-row">
-            <input id="admin-key" type="password" placeholder="ADMIN_KEY" />
-            <button class="ghost-button" id="save-admin-key" type="button">
-              Kirish
+          <div class="admin-sidebar-bottom" aria-label="Katalog boshqaruvi">
+            <button class="admin-bottom-button" data-admin-view="categories" type="button">
+              Categoriyalar
+            </button>
+            <button class="admin-bottom-button" data-admin-view="items" type="button">
+              Itemlar
             </button>
           </div>
-          <p class="hint">
-            Telegram ichida admin avtomatik aniqlanadi. Brauzerda test uchun
-            `.env` dagi `ADMIN_KEY`ni kiriting.
-          </p>
-        </div>
+        </aside>
 
-        <p class="status" id="admin-status">Admin panel tayyorlanmoqda.</p>
-        <div class="orders-list" id="orders-list"></div>
+        <div class="admin-main">
+          <div class="admin-heading">
+            <div>
+              <p class="eyebrow">Admin</p>
+              <h2>Buyurtmalar boshqaruvi</h2>
+            </div>
+          </div>
+
+          <div class="stats-grid" id="stats-grid">
+            <div>
+              <span>Jami</span>
+              <strong id="stat-total">0</strong>
+            </div>
+            <div>
+              <span>Yangi</span>
+              <strong id="stat-new">0</strong>
+            </div>
+            <div>
+              <span>Jarayonda</span>
+              <strong id="stat-processing">0</strong>
+            </div>
+            <div>
+              <span>Daromad</span>
+              <strong id="stat-revenue">0</strong>
+            </div>
+          </div>
+
+          <div class="admin-login" id="admin-login">
+            <label for="admin-key">Local admin kalit</label>
+            <div class="admin-login-row">
+              <input id="admin-key" type="password" placeholder="ADMIN_KEY" />
+              <button class="ghost-button" id="save-admin-key" type="button">
+                Kirish
+              </button>
+            </div>
+            <p class="hint">
+              Telegram ichida admin avtomatik aniqlanadi. Brauzerda test uchun
+              `.env` dagi `ADMIN_KEY`ni kiriting.
+            </p>
+          </div>
+
+          <p class="status" id="admin-status">Admin panel tayyorlanmoqda.</p>
+          <div class="orders-list" id="orders-list"></div>
+        </div>
       </section>
     </main>
 
