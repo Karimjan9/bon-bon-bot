@@ -522,3 +522,4 @@ ordersList.addEventListener("click", async (event) => {
 
 checkAdmin();
 loadCatalog();
+requestTelegramContact();
