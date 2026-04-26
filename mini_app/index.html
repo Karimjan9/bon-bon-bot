@@ -39,6 +39,7 @@
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" />
             </svg>
+            <span class="profile-name" id="profile-name">Login</span>
           </button>
         </div>
       </header>
@@ -47,39 +48,45 @@
         <input id="product-search" type="search" placeholder="Mahsulot qidirish" autocomplete="off" />
       </form>
 
-      <section class="hero">
-        <p class="eyebrow">Bon Bon Bot</p>
-        <h1>Shirin buyurtmani Telegram ichida boshlang.</h1>
-        <p class="lead">
-          Bu mini ilova botga test ma'lumot yuborish uchun tayyorlangan
-          boshlang'ich sahifa.
-        </p>
-      </section>
-
-      <section class="card">
-        <label for="product">Mahsulot</label>
-        <select id="product">
-          <option value="classic-bonbon">Classic Bon Bon</option>
-          <option value="choco-box">Choco Box</option>
-          <option value="gift-set">Gift Set</option>
-        </select>
-
-        <label for="quantity">Soni</label>
-        <div class="quantity-row">
-          <button type="button" id="decrement">-</button>
-          <input id="quantity" min="1" type="number" value="1" />
-          <button type="button" id="increment">+</button>
+      <section class="menu-section" id="menu-section" aria-label="Menu">
+        <div class="menu-toolbar">
+          <button class="menu-arrow-button" id="menu-category-prev" type="button" aria-label="Oldingi category">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m15 18-6-6 6-6" />
+            </svg>
+          </button>
+          <div class="menu-category-window">
+            <div class="menu-category-row" id="menu-categories"></div>
+          </div>
+          <button class="menu-arrow-button" id="menu-category-next" type="button" aria-label="Keyingi category">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </button>
         </div>
-
-        <label for="note">Izoh</label>
-        <textarea id="note" placeholder="Masalan: sovg'a qutisi kerak"></textarea>
-
-        <button class="primary-button" id="send-order" type="button">
-          Botga yuborish
-        </button>
+        <h1 class="menu-title" id="menu-title">Barchasi</h1>
+        <div class="menu-grid" id="menu-grid"></div>
       </section>
 
-      <p class="status" id="status">Mini app tayyor.</p>
+      <div class="menu-modal is-hidden" id="menu-modal" role="dialog" aria-modal="true" aria-label="Menu item">
+        <div class="menu-modal-backdrop" data-menu-modal-close></div>
+        <article class="menu-modal-card">
+          <button class="menu-modal-close" data-menu-modal-close type="button" aria-label="Yopish">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="m18 6-12 12M6 6l12 12" />
+            </svg>
+          </button>
+          <img class="menu-modal-image" id="menu-modal-image" alt="" />
+          <div class="menu-modal-content">
+            <h2 id="menu-modal-title"></h2>
+            <p id="menu-modal-description"></p>
+            <strong class="menu-modal-price" id="menu-modal-price"></strong>
+            <div class="menu-modal-meta" id="menu-modal-meta"></div>
+            <div class="menu-modal-variants" id="menu-modal-variants"></div>
+            <div class="menu-modal-addons" id="menu-modal-addons"></div>
+          </div>
+        </article>
+      </div>
 
       <section class="admin-card is-hidden" id="admin-panel">
         <aside class="admin-sidebar" aria-label="Admin menu">
@@ -113,9 +120,6 @@
             <button class="admin-nav-button" data-admin-view="stats" type="button">
               Statistika
             </button>
-            <button class="admin-nav-button" id="refresh-orders" type="button">
-              Yangilash
-            </button>
           </nav>
 
           <div class="admin-sidebar-bottom" aria-label="Katalog boshqaruvi">
@@ -124,6 +128,21 @@
             </button>
             <button class="admin-bottom-button" data-admin-view="items" type="button">
               Itemlar
+            </button>
+            <button class="admin-bottom-button" data-admin-view="variants" type="button">
+              Variantlar
+            </button>
+            <button class="admin-bottom-button" data-admin-view="addon-groups" type="button">
+              Addon Grouplar
+            </button>
+            <button class="admin-bottom-button" data-admin-view="addons" type="button">
+              Addonlar
+            </button>
+            <button class="admin-bottom-button" data-admin-view="addon-links" type="button">
+              Group Addonlar
+            </button>
+            <button class="admin-bottom-button" id="refresh-orders" type="button">
+              Yangilash
             </button>
           </div>
         </aside>
@@ -156,17 +175,15 @@
           </div>
 
           <div class="admin-login" id="admin-login">
-            <label for="admin-key">Local admin kalit</label>
+            <label for="admin-login-name">Admin login</label>
+            <input id="admin-login-name" type="text" placeholder="admin" autocomplete="username" />
+            <label for="admin-key">Admin parol</label>
             <div class="admin-login-row">
-              <input id="admin-key" type="password" placeholder="ADMIN_KEY" />
+              <input id="admin-key" type="password" placeholder="ADMIN_PASSWORD" autocomplete="current-password" />
               <button class="ghost-button" id="save-admin-key" type="button">
                 Kirish
               </button>
             </div>
-            <p class="hint">
-              Telegram ichida admin avtomatik aniqlanadi. Brauzerda test uchun
-              `.env` dagi `ADMIN_KEY`ni kiriting.
-            </p>
           </div>
 
           <p class="status" id="admin-status">Admin panel tayyorlanmoqda.</p>

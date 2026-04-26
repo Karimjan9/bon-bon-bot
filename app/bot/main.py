@@ -37,6 +37,22 @@ BOT_SHORT_DESCRIPTION = (
 )
 
 
+BOT_DESCRIPTION = (
+    "BON-BON premium menyusi:\n"
+    "🍫 Mualliflik bonbonlari\n"
+    "🎂 Nafis tort va desertlar\n"
+    "🎁 Sovga uchun shirin toplamlari\n"
+    "🥐 Fresh pastry va non mahsulotlari\n"
+    "☕ Coffee va premium ichimliklar\n"
+    "🚚 Yetkazib berish: 10:00-22:00\n"
+    "💬 Bot: @bonik_testbot"
+)
+
+BOT_SHORT_DESCRIPTION = (
+    "BON-BON: premium bonbonlar, desertlar, tortlar va sovga toplamlari."
+)
+
+
 async def configure_bot_profile(bot: Bot) -> None:
     await bot.set_my_description(description=BOT_DESCRIPTION)
     await bot.set_my_short_description(short_description=BOT_SHORT_DESCRIPTION)
@@ -71,7 +87,7 @@ async def language_handler(message: Message) -> None:
         reply_markup=ReplyKeyboardRemove(),
     )
     await message.answer(
-        "Buyurtma berish uchun quyidagi 'Menyuni ko'rish' tugmasini bosing.",
+        "Menyuni ko'rish uchun pastdagi tugmani bosing.",
         reply_markup=menu_inline_keyboard(settings.web_app_url),
     )
 

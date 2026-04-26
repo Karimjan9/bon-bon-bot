@@ -1,3 +1,8 @@
+import base64
+import hashlib
+import hmac
+import json
+import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
@@ -6,7 +11,9 @@ import uvicorn
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.config import get_settings
 from app.db.migrations import ensure_schema_ready
@@ -25,13 +32,21 @@ from app.security.telegram import TelegramInitDataError, verify_telegram_init_da
 from app.services.catalog import list_active_products, list_addons, list_categories, list_menu_items
 from app.services.orders import create_order, get_order_stats, list_orders, update_order_status
 from app.web.schemas import (
+    AdminLogin,
     AdminStatsRead,
+    AdminTokenRead,
     CategoryRead,
+    CategoryWrite,
     MenuItemAddonGroupItemRead,
+    MenuItemAddonGroupItemWrite,
     MenuItemAddonGroupRead,
+    MenuItemAddonGroupWrite,
     MenuItemAddonRead,
+    MenuItemAddonWrite,
     MenuItemRead,
     MenuItemVariantRead,
+    MenuItemVariantWrite,
+    MenuItemWrite,
     MeRead,
     OrderCreate,
     OrderItemRead,
@@ -44,6 +59,7 @@ from app.web.schemas import (
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 MINI_APP_DIR = BASE_DIR / "mini_app"
+ADMIN_TOKEN_TTL_SECONDS = 6 * 60 * 60
 
 
 @asynccontextmanager
@@ -63,6 +79,11 @@ async def index() -> FileResponse:
 
 @app.get("/admin")
 async def admin() -> FileResponse:
+    return FileResponse(MINI_APP_DIR / "index.html")
+
+
+@app.get("/login")
+async def login() -> FileResponse:
     return FileResponse(MINI_APP_DIR / "index.html")
 
 
@@ -246,12 +267,78 @@ def get_verified_telegram_user(init_data: str | None) -> dict | None:
     return user if isinstance(user, dict) else None
 
 
+def base64url_encode(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")
+
+
+def base64url_decode(value: str) -> bytes:
+    padding = "=" * (-len(value) % 4)
+    return base64.urlsafe_b64decode(value + padding)
+
+
+def admin_token_secret() -> bytes:
+    settings = get_settings()
+    secret = settings.admin_password or settings.admin_key or settings.bot_token
+    return secret.encode("utf-8")
+
+
+def sign_admin_token(payload: dict[str, int | str]) -> str:
+    body = base64url_encode(json.dumps(payload, separators=(",", ":")).encode("utf-8"))
+    signature = hmac.new(admin_token_secret(), body.encode("ascii"), hashlib.sha256).digest()
+    return f"{body}.{base64url_encode(signature)}"
+
+
+def verify_admin_token(token: str | None) -> bool:
+    if not token or "." not in token:
+        return False
+
+    body, signature = token.split(".", 1)
+    expected_signature = hmac.new(
+        admin_token_secret(),
+        body.encode("ascii"),
+        hashlib.sha256,
+    ).digest()
+    try:
+        provided_signature = base64url_decode(signature)
+        payload = json.loads(base64url_decode(body))
+    except (ValueError, json.JSONDecodeError):
+        return False
+
+    if not hmac.compare_digest(provided_signature, expected_signature):
+        return False
+
+    settings = get_settings()
+    return payload.get("login") == settings.admin_login and int(payload.get("exp", 0)) > int(
+        time.time()
+    )
+
+
+def is_valid_admin_credentials(login: str | None, password: str | None) -> bool:
+    settings = get_settings()
+    expected_password = settings.admin_password or settings.admin_key
+    return bool(
+        settings.admin_login
+        and expected_password
+        and login == settings.admin_login
+        and password == expected_password
+    )
+
+
 def is_admin_request(
     init_data: str | None,
     admin_key: str | None,
+    admin_login: str | None,
+    admin_password: str | None,
+    admin_token: str | None,
 ) -> tuple[bool, dict | None]:
     settings = get_settings()
+    if verify_admin_token(admin_token):
+        return True, None
+
     if settings.admin_key and admin_key and admin_key == settings.admin_key:
+        return True, None
+
+    if is_valid_admin_credentials(admin_login, admin_password):
         return True, None
 
     user = get_verified_telegram_user(init_data)
@@ -264,8 +351,17 @@ def is_admin_request(
 async def require_admin(
     x_telegram_init_data: Annotated[str | None, Header()] = None,
     x_admin_key: Annotated[str | None, Header()] = None,
+    x_admin_login: Annotated[str | None, Header()] = None,
+    x_admin_password: Annotated[str | None, Header()] = None,
+    x_admin_token: Annotated[str | None, Header()] = None,
 ) -> dict | None:
-    is_admin, user = is_admin_request(x_telegram_init_data, x_admin_key)
+    is_admin, user = is_admin_request(
+        x_telegram_init_data,
+        x_admin_key,
+        x_admin_login,
+        x_admin_password,
+        x_admin_token,
+    )
     if not is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -274,12 +370,134 @@ async def require_admin(
     return user
 
 
+async def get_category_or_404(session: AsyncSession, category_id: int) -> Category:
+    category = await session.get(Category, category_id)
+    if category is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category topilmadi.")
+    return category
+
+
+async def get_menu_item_or_404(session: AsyncSession, menu_item_id: int) -> MenuItem:
+    menu_item = await session.get(MenuItem, menu_item_id)
+    if menu_item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item topilmadi.")
+    return menu_item
+
+
+async def get_addon_or_404(session: AsyncSession, addon_id: int) -> MenuItemAddon:
+    addon = await session.get(MenuItemAddon, addon_id)
+    if addon is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Addon topilmadi.")
+    return addon
+
+
+async def get_addon_group_or_404(
+    session: AsyncSession,
+    addon_group_id: int,
+) -> MenuItemAddonGroup:
+    addon_group = await session.get(MenuItemAddonGroup, addon_group_id)
+    if addon_group is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Addon group topilmadi.")
+    return addon_group
+
+
+async def get_addon_group_item_or_404(
+    session: AsyncSession,
+    group_item_id: int,
+) -> MenuItemAddonGroupItem:
+    group_item = await session.get(MenuItemAddonGroupItem, group_item_id)
+    if group_item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bog'lanma topilmadi.")
+    return group_item
+
+
+def apply_payload(model: object, payload: dict) -> None:
+    for field, value in payload.items():
+        setattr(model, field, value)
+
+
+async def fetch_menu_item_read(session: AsyncSession, menu_item_id: int) -> MenuItem:
+    result = await session.execute(
+        select(MenuItem)
+        .options(selectinload(MenuItem.category), selectinload(MenuItem.variants))
+        .options(
+            selectinload(MenuItem.addon_groups)
+            .selectinload(MenuItemAddonGroup.items)
+            .selectinload(MenuItemAddonGroupItem.addon)
+        )
+        .where(MenuItem.id == menu_item_id)
+    )
+    menu_item = result.scalar_one_or_none()
+    if menu_item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Menu item topilmadi.")
+    return menu_item
+
+
+async def fetch_addon_group_read(session: AsyncSession, addon_group_id: int) -> MenuItemAddonGroup:
+    result = await session.execute(
+        select(MenuItemAddonGroup)
+        .options(
+            selectinload(MenuItemAddonGroup.items).selectinload(MenuItemAddonGroupItem.addon)
+        )
+        .where(MenuItemAddonGroup.id == addon_group_id)
+    )
+    addon_group = result.scalar_one_or_none()
+    if addon_group is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Addon group topilmadi.")
+    return addon_group
+
+
+async def fetch_addon_group_item_read(
+    session: AsyncSession,
+    group_item_id: int,
+) -> MenuItemAddonGroupItem:
+    result = await session.execute(
+        select(MenuItemAddonGroupItem)
+        .options(selectinload(MenuItemAddonGroupItem.addon))
+        .where(MenuItemAddonGroupItem.id == group_item_id)
+    )
+    group_item = result.scalar_one_or_none()
+    if group_item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bog'lanma topilmadi.")
+    return group_item
+
+
+async def ensure_addon_link_is_unique(
+    session: AsyncSession,
+    addon_group_id: int,
+    addon_id: int,
+    current_id: int | None = None,
+) -> None:
+    query = select(MenuItemAddonGroupItem).where(
+        MenuItemAddonGroupItem.addon_group_id == addon_group_id,
+        MenuItemAddonGroupItem.addon_id == addon_id,
+    )
+    if current_id is not None:
+        query = query.where(MenuItemAddonGroupItem.id != current_id)
+
+    result = await session.execute(query)
+    if result.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Bu addon group ichida addon allaqachon bor.",
+        )
+
+
 @app.get("/api/me", response_model=MeRead)
 async def me(
     x_telegram_init_data: Annotated[str | None, Header()] = None,
     x_admin_key: Annotated[str | None, Header()] = None,
+    x_admin_login: Annotated[str | None, Header()] = None,
+    x_admin_password: Annotated[str | None, Header()] = None,
+    x_admin_token: Annotated[str | None, Header()] = None,
 ) -> MeRead:
-    is_admin, user = is_admin_request(x_telegram_init_data, x_admin_key)
+    is_admin, user = is_admin_request(
+        x_telegram_init_data,
+        x_admin_key,
+        x_admin_login,
+        x_admin_password,
+        x_admin_token,
+    )
     if not user:
         return MeRead(is_admin=is_admin, user=None)
 
@@ -291,6 +509,23 @@ async def me(
             first_name=user.get("first_name"),
             last_name=user.get("last_name"),
         ),
+    )
+
+
+@app.post("/api/admin/login", response_model=AdminTokenRead)
+async def admin_login(payload: AdminLogin) -> AdminTokenRead:
+    if not is_valid_admin_credentials(payload.login, payload.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Login yoki parol xato.",
+        )
+
+    expires_at = int(time.time()) + ADMIN_TOKEN_TTL_SECONDS
+    access_token = sign_admin_token({"login": payload.login, "exp": expires_at})
+    return AdminTokenRead(
+        access_token=access_token,
+        expires_at=expires_at,
+        expires_in=ADMIN_TOKEN_TTL_SECONDS,
     )
 
 
@@ -386,6 +621,338 @@ async def admin_addons(
 ) -> list[MenuItemAddonRead]:
     addons = await list_addons(session, active_only=False)
     return [serialize_addon(addon) for addon in addons]
+
+
+@app.post("/api/admin/categories", response_model=CategoryRead)
+async def admin_create_category(
+    payload: CategoryWrite,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+) -> CategoryRead:
+    category = Category()
+    apply_payload(category, payload.model_dump())
+    session.add(category)
+    await session.commit()
+    await session.refresh(category)
+    return serialize_category(category)
+
+
+@app.patch("/api/admin/categories/{category_id}", response_model=CategoryRead)
+async def admin_update_category(
+    category_id: int,
+    payload: CategoryWrite,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+) -> CategoryRead:
+    category = await get_category_or_404(session, category_id)
+    apply_payload(category, payload.model_dump())
+    await session.commit()
+    await session.refresh(category)
+    return serialize_category(category)
+
+
+@app.delete("/api/admin/categories/{category_id}")
+async def admin_delete_category(
+    category_id: int,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+) -> dict[str, str]:
+    category = await get_category_or_404(session, category_id)
+    await session.delete(category)
+    await session.commit()
+    return {"status": "deleted"}
+
+
+@app.post("/api/admin/menu-items", response_model=MenuItemRead)
+async def admin_create_menu_item(
+    payload: MenuItemWrite,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+) -> MenuItemRead:
+    await get_category_or_404(session, payload.category_id)
+    menu_item = MenuItem()
+    apply_payload(menu_item, payload.model_dump())
+    session.add(menu_item)
+    await session.commit()
+    return serialize_menu_item(await fetch_menu_item_read(session, menu_item.id))
+
+
+@app.patch("/api/admin/menu-items/{menu_item_id}", response_model=MenuItemRead)
+async def admin_update_menu_item(
+    menu_item_id: int,
+    payload: MenuItemWrite,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+) -> MenuItemRead:
+    await get_category_or_404(session, payload.category_id)
+    menu_item = await get_menu_item_or_404(session, menu_item_id)
+    apply_payload(menu_item, payload.model_dump())
+    await session.commit()
+    return serialize_menu_item(await fetch_menu_item_read(session, menu_item.id))
+
+
+@app.delete("/api/admin/menu-items/{menu_item_id}")
+async def admin_delete_menu_item(
+    menu_item_id: int,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+) -> dict[str, str]:
+    menu_item = await get_menu_item_or_404(session, menu_item_id)
+    await session.delete(menu_item)
+    await session.commit()
+    return {"status": "deleted"}
+
+
+@app.get("/api/admin/variants", response_model=list[MenuItemVariantRead])
+async def admin_variants(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+    menu_item_id: int | None = None,
+) -> list[MenuItemVariantRead]:
+    query = select(MenuItemVariant).order_by(
+        MenuItemVariant.menu_item_id.asc(),
+        MenuItemVariant.sort_order.asc(),
+        MenuItemVariant.name.asc(),
+    )
+    if menu_item_id is not None:
+        query = query.where(MenuItemVariant.menu_item_id == menu_item_id)
+
+    result = await session.execute(query)
+    return [serialize_variant(variant) for variant in result.scalars().all()]
+
+
+@app.post("/api/admin/variants", response_model=MenuItemVariantRead)
+async def admin_create_variant(
+    payload: MenuItemVariantWrite,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+) -> MenuItemVariantRead:
+    await get_menu_item_or_404(session, payload.menu_item_id)
+    variant = MenuItemVariant()
+    apply_payload(variant, payload.model_dump())
+    session.add(variant)
+    await session.commit()
+    await session.refresh(variant)
+    return serialize_variant(variant)
+
+
+@app.patch("/api/admin/variants/{variant_id}", response_model=MenuItemVariantRead)
+async def admin_update_variant(
+    variant_id: int,
+    payload: MenuItemVariantWrite,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+) -> MenuItemVariantRead:
+    await get_menu_item_or_404(session, payload.menu_item_id)
+    variant = await session.get(MenuItemVariant, variant_id)
+    if variant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variant topilmadi.")
+    apply_payload(variant, payload.model_dump())
+    await session.commit()
+    await session.refresh(variant)
+    return serialize_variant(variant)
+
+
+@app.delete("/api/admin/variants/{variant_id}")
+async def admin_delete_variant(
+    variant_id: int,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+) -> dict[str, str]:
+    variant = await session.get(MenuItemVariant, variant_id)
+    if variant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Variant topilmadi.")
+    await session.delete(variant)
+    await session.commit()
+    return {"status": "deleted"}
+
+
+@app.post("/api/admin/addons", response_model=MenuItemAddonRead)
+async def admin_create_addon(
+    payload: MenuItemAddonWrite,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+) -> MenuItemAddonRead:
+    addon = MenuItemAddon()
+    apply_payload(addon, payload.model_dump())
+    session.add(addon)
+    await session.commit()
+    await session.refresh(addon)
+    return serialize_addon(addon)
+
+
+@app.patch("/api/admin/addons/{addon_id}", response_model=MenuItemAddonRead)
+async def admin_update_addon(
+    addon_id: int,
+    payload: MenuItemAddonWrite,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+) -> MenuItemAddonRead:
+    addon = await get_addon_or_404(session, addon_id)
+    apply_payload(addon, payload.model_dump())
+    await session.commit()
+    await session.refresh(addon)
+    return serialize_addon(addon)
+
+
+@app.delete("/api/admin/addons/{addon_id}")
+async def admin_delete_addon(
+    addon_id: int,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+) -> dict[str, str]:
+    addon = await get_addon_or_404(session, addon_id)
+    await session.delete(addon)
+    await session.commit()
+    return {"status": "deleted"}
+
+
+@app.get("/api/admin/addon-groups", response_model=list[MenuItemAddonGroupRead])
+async def admin_addon_groups(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+    menu_item_id: int | None = None,
+) -> list[MenuItemAddonGroupRead]:
+    query = (
+        select(MenuItemAddonGroup)
+        .options(
+            selectinload(MenuItemAddonGroup.items).selectinload(MenuItemAddonGroupItem.addon)
+        )
+        .order_by(
+            MenuItemAddonGroup.menu_item_id.asc(),
+            MenuItemAddonGroup.sort_order.asc(),
+            MenuItemAddonGroup.name.asc(),
+        )
+    )
+    if menu_item_id is not None:
+        query = query.where(MenuItemAddonGroup.menu_item_id == menu_item_id)
+
+    result = await session.execute(query)
+    return [serialize_addon_group(addon_group) for addon_group in result.scalars().all()]
+
+
+@app.post("/api/admin/addon-groups", response_model=MenuItemAddonGroupRead)
+async def admin_create_addon_group(
+    payload: MenuItemAddonGroupWrite,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+) -> MenuItemAddonGroupRead:
+    if payload.max_select < payload.min_select:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="max_select min_select dan kichik bo'lmasin.",
+        )
+    await get_menu_item_or_404(session, payload.menu_item_id)
+    addon_group = MenuItemAddonGroup()
+    apply_payload(addon_group, payload.model_dump())
+    session.add(addon_group)
+    await session.commit()
+    return serialize_addon_group(await fetch_addon_group_read(session, addon_group.id))
+
+
+@app.patch("/api/admin/addon-groups/{addon_group_id}", response_model=MenuItemAddonGroupRead)
+async def admin_update_addon_group(
+    addon_group_id: int,
+    payload: MenuItemAddonGroupWrite,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+) -> MenuItemAddonGroupRead:
+    if payload.max_select < payload.min_select:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="max_select min_select dan kichik bo'lmasin.",
+        )
+    await get_menu_item_or_404(session, payload.menu_item_id)
+    addon_group = await get_addon_group_or_404(session, addon_group_id)
+    apply_payload(addon_group, payload.model_dump())
+    await session.commit()
+    return serialize_addon_group(await fetch_addon_group_read(session, addon_group.id))
+
+
+@app.delete("/api/admin/addon-groups/{addon_group_id}")
+async def admin_delete_addon_group(
+    addon_group_id: int,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+) -> dict[str, str]:
+    addon_group = await get_addon_group_or_404(session, addon_group_id)
+    await session.delete(addon_group)
+    await session.commit()
+    return {"status": "deleted"}
+
+
+@app.get("/api/admin/addon-group-items", response_model=list[MenuItemAddonGroupItemRead])
+async def admin_addon_group_items(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+    addon_group_id: int | None = None,
+) -> list[MenuItemAddonGroupItemRead]:
+    query = (
+        select(MenuItemAddonGroupItem)
+        .options(selectinload(MenuItemAddonGroupItem.addon))
+        .order_by(
+            MenuItemAddonGroupItem.addon_group_id.asc(),
+            MenuItemAddonGroupItem.sort_order.asc(),
+            MenuItemAddonGroupItem.id.asc(),
+        )
+    )
+    if addon_group_id is not None:
+        query = query.where(MenuItemAddonGroupItem.addon_group_id == addon_group_id)
+
+    result = await session.execute(query)
+    return [serialize_addon_group_item(group_item) for group_item in result.scalars().all()]
+
+
+@app.post("/api/admin/addon-group-items", response_model=MenuItemAddonGroupItemRead)
+async def admin_create_addon_group_item(
+    payload: MenuItemAddonGroupItemWrite,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+) -> MenuItemAddonGroupItemRead:
+    await get_addon_group_or_404(session, payload.addon_group_id)
+    await get_addon_or_404(session, payload.addon_id)
+    await ensure_addon_link_is_unique(session, payload.addon_group_id, payload.addon_id)
+    group_item = MenuItemAddonGroupItem()
+    apply_payload(group_item, payload.model_dump())
+    session.add(group_item)
+    await session.commit()
+    return serialize_addon_group_item(await fetch_addon_group_item_read(session, group_item.id))
+
+
+@app.patch(
+    "/api/admin/addon-group-items/{group_item_id}",
+    response_model=MenuItemAddonGroupItemRead,
+)
+async def admin_update_addon_group_item(
+    group_item_id: int,
+    payload: MenuItemAddonGroupItemWrite,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+) -> MenuItemAddonGroupItemRead:
+    await get_addon_group_or_404(session, payload.addon_group_id)
+    await get_addon_or_404(session, payload.addon_id)
+    await ensure_addon_link_is_unique(
+        session,
+        payload.addon_group_id,
+        payload.addon_id,
+        current_id=group_item_id,
+    )
+    group_item = await get_addon_group_item_or_404(session, group_item_id)
+    apply_payload(group_item, payload.model_dump())
+    await session.commit()
+    return serialize_addon_group_item(await fetch_addon_group_item_read(session, group_item.id))
+
+
+@app.delete("/api/admin/addon-group-items/{group_item_id}")
+async def admin_delete_addon_group_item(
+    group_item_id: int,
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+) -> dict[str, str]:
+    group_item = await get_addon_group_item_or_404(session, group_item_id)
+    await session.delete(group_item)
+    await session.commit()
+    return {"status": "deleted"}
 
 
 @app.patch("/api/admin/orders/{order_id}/status", response_model=OrderRead)
