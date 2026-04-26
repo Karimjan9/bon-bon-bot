@@ -7,6 +7,10 @@ from aiogram.types import (
 )
 
 
+def is_https_url(url: str) -> bool:
+    return url.lower().startswith("https://")
+
+
 def language_keyboard() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
@@ -21,6 +25,15 @@ def language_keyboard() -> ReplyKeyboardMarkup:
 
 
 def main_keyboard(web_app_url: str) -> ReplyKeyboardMarkup:
+    if not is_https_url(web_app_url):
+        return ReplyKeyboardMarkup(
+            keyboard=[
+                [KeyboardButton(text="Mini ilovani ochish")],
+                [KeyboardButton(text="Yordam")],
+            ],
+            resize_keyboard=True,
+        )
+
     return ReplyKeyboardMarkup(
         keyboard=[
             [
@@ -36,13 +49,16 @@ def main_keyboard(web_app_url: str) -> ReplyKeyboardMarkup:
 
 
 def menu_inline_keyboard(web_app_url: str) -> InlineKeyboardMarkup:
+    button = InlineKeyboardButton(
+        text="Menyuni ko'rish",
+        web_app=WebAppInfo(url=web_app_url),
+    )
+    if not is_https_url(web_app_url):
+        button = InlineKeyboardButton(
+            text="Menyuni ko'rish",
+            url=web_app_url,
+        )
+
     return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(
-                    text="Menyuni ko'rish",
-                    web_app=WebAppInfo(url=web_app_url),
-                )
-            ]
-        ]
+        inline_keyboard=[[button]]
     )

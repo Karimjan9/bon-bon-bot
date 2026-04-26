@@ -55,6 +55,14 @@ class CategoryRead(BaseModel):
     updated_at: datetime
 
 
+class CategoryWrite(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    description: str | None = None
+    image_url: str | None = None
+    sort_order: int = 0
+    is_active: bool = True
+
+
 class MenuItemVariantRead(BaseModel):
     id: int
     menu_item_id: int
@@ -68,6 +76,16 @@ class MenuItemVariantRead(BaseModel):
     updated_at: datetime
 
 
+class MenuItemVariantWrite(BaseModel):
+    menu_item_id: int
+    name: str = Field(min_length=1, max_length=100)
+    price: Decimal = Field(ge=0)
+    weight_grams: int | None = Field(default=None, ge=0)
+    is_default: bool = False
+    is_available: bool = True
+    sort_order: int = 0
+
+
 class MenuItemAddonRead(BaseModel):
     id: int
     name: str
@@ -78,6 +96,13 @@ class MenuItemAddonRead(BaseModel):
     updated_at: datetime
 
 
+class MenuItemAddonWrite(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    description: str | None = None
+    price: Decimal = Field(ge=0)
+    is_available: bool = True
+
+
 class MenuItemAddonGroupItemRead(BaseModel):
     id: int
     addon_group_id: int
@@ -85,6 +110,12 @@ class MenuItemAddonGroupItemRead(BaseModel):
     addon: MenuItemAddonRead
     sort_order: int
     created_at: datetime
+
+
+class MenuItemAddonGroupItemWrite(BaseModel):
+    addon_group_id: int
+    addon_id: int
+    sort_order: int = 0
 
 
 class MenuItemAddonGroupRead(BaseModel):
@@ -98,6 +129,15 @@ class MenuItemAddonGroupRead(BaseModel):
     items: list[MenuItemAddonGroupItemRead] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
+
+
+class MenuItemAddonGroupWrite(BaseModel):
+    menu_item_id: int
+    name: str = Field(min_length=1, max_length=100)
+    min_select: int = Field(default=0, ge=0)
+    max_select: int = Field(default=1, ge=0)
+    is_required: bool = False
+    sort_order: int = 0
 
 
 class MenuItemRead(BaseModel):
@@ -119,6 +159,21 @@ class MenuItemRead(BaseModel):
     addon_groups: list[MenuItemAddonGroupRead] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
+
+
+class MenuItemWrite(BaseModel):
+    category_id: int
+    name: str = Field(min_length=1, max_length=150)
+    description: str | None = None
+    base_price: Decimal = Field(ge=0)
+    image_url: str | None = None
+    is_available: bool = True
+    is_popular: bool = False
+    is_new: bool = False
+    sort_order: int = 0
+    preparation_time_minutes: int | None = Field(default=None, ge=0)
+    calories: int | None = Field(default=None, ge=0)
+    weight_grams: int | None = Field(default=None, ge=0)
 
 
 class OrderItemRead(BaseModel):
@@ -146,6 +201,18 @@ class OrderRead(BaseModel):
 class MeRead(BaseModel):
     is_admin: bool
     user: UserRead | None = None
+
+
+class AdminLogin(BaseModel):
+    login: str = Field(min_length=1, max_length=120)
+    password: str = Field(min_length=1, max_length=255)
+
+
+class AdminTokenRead(BaseModel):
+    access_token: str
+    token_type: str = "Bearer"
+    expires_at: int
+    expires_in: int
 
 
 class AdminStatsRead(BaseModel):

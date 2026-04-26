@@ -13,9 +13,56 @@ from app.services.orders import create_order
 
 router = Router()
 
+
 # =========================
 # 🌍 START - LANGUAGE SELECT
 # =========================
+
+LANGUAGE_BUTTONS = {"🇺🇿 O'zbek", "🇷🇺 Русский", "🇬🇧 English"}
+
+BOT_DESCRIPTION = (
+    "ВЫ МОЖЕТЕ ЗАКАЗАТЬ:\n"
+    "🍦🍨🍧 Итальянское мороженое GIOTTO\n"
+    "🥐🧇 Вафли льежские и бельгийские\n"
+    "🥮🍰🍩 Пирожные\n"
+    "🍞🥖🥨 Хлеб в ассортименте\n"
+    "🍔🥪 Бургеры\n"
+    "🍝🥗🍲 Пасты и горячие блюда\n"
+    "🥗🥙 Салаты и сэндвичи\n"
+    "☕️🍷 Кофе и напитки\n\n"
+    "СЛУЖБА ДОСТАВКИ:\n"
+    "⏰ 10:00-22:00\n"
+    "📩 @Giottouz_bot\n"
+    "☎️ +99890 010 2972"
+)
+
+BOT_SHORT_DESCRIPTION = (
+    "GIOTTO: мороженое, десерты, выпечка, бургеры, паста, кофе и напитки с доставкой."
+)
+
+
+BOT_DESCRIPTION = (
+    "BON-BON premium menyusi:\n"
+    "🍫 Mualliflik bonbonlari\n"
+    "🎂 Nafis tort va desertlar\n"
+    "🎁 Sovga uchun shirin toplamlari\n"
+    "🥐 Fresh pastry va non mahsulotlari\n"
+    "☕ Coffee va premium ichimliklar\n"
+    "🚚 Yetkazib berish: 10:00-22:00\n"
+    "💬 Bot: @bonik_testbot"
+)
+
+BOT_SHORT_DESCRIPTION = (
+    "BON-BON: premium bonbonlar, desertlar, tortlar va sovga toplamlari."
+)
+
+
+async def configure_bot_profile(bot: Bot) -> None:
+    await bot.set_my_description(description=BOT_DESCRIPTION)
+    await bot.set_my_short_description(short_description=BOT_SHORT_DESCRIPTION)
+
+
+
 @router.message(CommandStart())
 async def start_handler(message: Message) -> None:
     kb = ReplyKeyboardMarkup(
@@ -53,9 +100,14 @@ async def language_handler(message: Message) -> None:
     elif text == "🇬🇧 English":
         await message.answer("🇬🇧 Welcome to BonBon Cafe!")
 
-    await message.answer(
+    await message.answer (
+
         "📲 Menyuni ochish uchun pastdagi tugmani bosing:",
         reply_markup=main_keyboard(settings.web_app_url)
+
+        "Menyuni ko'rish uchun pastdagi tugmani bosing.",
+        reply_markup=menu_inline_keyboard(settings.web_app_url),
+
     )
 
 

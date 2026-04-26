@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     db_echo: bool = Field(default=False, validation_alias="DB_ECHO")
 
     admin_key: str = Field(default="", validation_alias="ADMIN_KEY")
+    admin_login: str = Field(default="admin", validation_alias="ADMIN_LOGIN")
+    admin_password: str = Field(default="", validation_alias="ADMIN_PASSWORD")
     admin_telegram_ids: str = Field(default="", validation_alias="ADMIN_TELEGRAM_IDS")
 
     model_config = SettingsConfigDict(

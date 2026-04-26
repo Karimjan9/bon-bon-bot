@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>BonBon Cafe</title>
 
-  <link rel="stylesheet" href="/static/styles.css" />
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
   <style>
@@ -27,19 +26,8 @@
       margin-bottom: 20px;
     }
 
-    .eyebrow {
-      color: #38bdf8;
-      font-size: 12px;
-    }
-
-    h1 {
-      font-size: 20px;
-      margin: 10px 0;
-    }
-
-    .lead {
-      font-size: 13px;
-      opacity: 0.8;
+    .hero p {
+      margin: 5px 0;
     }
 
     .card {
@@ -62,12 +50,14 @@
       border: none;
       background: #0f172a;
       color: white;
+      box-sizing: border-box;
     }
 
     .quantity-row {
       display: flex;
       gap: 10px;
       align-items: center;
+      margin-top: 5px;
     }
 
     button {
@@ -97,13 +87,6 @@
       margin-top: 10px;
       opacity: 0.7;
     }
-
-    .admin-card {
-      margin-top: 20px;
-      background: #1e293b;
-      padding: 15px;
-      border-radius: 12px;
-    }
   </style>
 </head>
 
@@ -113,9 +96,9 @@
 
   <!-- HERO -->
   <section class="hero">
-    <p class="eyebrow">🍔 BonBon Cafe</p>
-    <h1>Shirin va mazali buyurtmalarni tanlang</h1>
-    <p class="lead">Telegram ichida tez va oson buyurtma bering 🚀</p>
+    <p>🍔 BonBon Cafe</p>
+    <h2>Shirin va mazali buyurtmalar</h2>
+    <p>Telegram ichida tez buyurtma bering 🚀</p>
   </section>
 
   <!-- ORDER CARD -->
@@ -145,14 +128,6 @@
 
   </section>
 
-  <!-- ADMIN PANEL -->
-  <section class="admin-card" id="admin-panel">
-    <h2>Admin Panel</h2>
-    <input type="password" id="admin-key" placeholder="ADMIN_KEY">
-    <button id="save-admin-key">Kirish</button>
-    <p class="status">Admin panel tayyorlanmoqda...</p>
-  </section>
-
   <p class="status" id="status">BonBon tayyor 🍔</p>
 
 </main>
@@ -163,19 +138,25 @@
 
   const qty = document.getElementById("quantity");
 
-  document.getElementById("increment").onclick = () => qty.value++;
+  document.getElementById("increment").onclick = () => {
+    qty.value = Number(qty.value) + 1;
+  };
+
   document.getElementById("decrement").onclick = () => {
-    if (qty.value > 1) qty.value--;
+    if (qty.value > 1) qty.value = Number(qty.value) - 1;
   };
 
   document.getElementById("send-order").onclick = () => {
     const data = {
       product: document.getElementById("product").value,
-      quantity: qty.value,
+      quantity: Number(qty.value),
       note: document.getElementById("note").value
     };
 
     tg.sendData(JSON.stringify(data));
+
+    document.getElementById("status").innerText =
+      "Buyurtma yuborildi 🚀";
   };
 </script>
 
