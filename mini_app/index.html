@@ -1,163 +1,203 @@
 <!doctype html>
 <html lang="uz">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BonBon Cafe</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BonBon Cafe</title>
 
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #0f172a;
-      color: #fff;
-    }
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-    .app-shell {
-      max-width: 420px;
-      margin: auto;
-      padding: 15px;
-    }
+<style>
 
-    .hero {
-      text-align: center;
-      margin-bottom: 20px;
-    }
+:root{
+  --orange:#FF6B00;
+  --bg:#F2F2F7;
+}
 
-    .hero p {
-      margin: 5px 0;
-    }
+body{
+  margin:0;
+  font-family:'Inter',-apple-system;
+  background:var(--bg);
+}
 
-    .card {
-      background: #1e293b;
-      padding: 15px;
-      border-radius: 12px;
-    }
+/* HEADER */
+.header{
+  padding:14px;
+  font-weight:600;
+  background:rgba(255,255,255,0.7);
+  backdrop-filter:blur(20px);
+}
 
-    label {
-      display: block;
-      margin-top: 10px;
-      font-size: 13px;
-    }
+/* LIST */
+.list{
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
 
-    select, input, textarea {
-      width: 100%;
-      margin-top: 5px;
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-      background: #0f172a;
-      color: white;
-      box-sizing: border-box;
-    }
+/* CARD */
+.card{
+  display:flex;
+  gap:12px;
+  padding:12px;
+  background:#fff;
+  border-radius:16px;
+  align-items:center;
+  box-shadow:0 4px 12px rgba(0,0,0,0.05);
+  cursor:pointer;
+}
 
-    .quantity-row {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      margin-top: 5px;
-    }
+.card img{
+  width:70px;
+  height:70px;
+  border-radius:14px;
+  object-fit:cover;
+}
 
-    button {
-      padding: 10px;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-    }
+.title{
+  font-weight:600;
+  font-size:14px;
+}
 
-    #increment, #decrement {
-      width: 40px;
-      background: #334155;
-      color: white;
-    }
+.desc{
+  font-size:12px;
+  color:#777;
+}
 
-    .primary-button {
-      margin-top: 15px;
-      width: 100%;
-      background: #22c55e;
-      color: white;
-      font-weight: bold;
-    }
+/* PRICE */
+.price{
+  color:var(--orange);
+  font-weight:700;
+  font-size:14px;
+}
 
-    .status {
-      text-align: center;
-      font-size: 12px;
-      margin-top: 10px;
-      opacity: 0.7;
-    }
-  </style>
+/* DETAIL PAGE */
+.detail{
+  position:fixed;
+  inset:0;
+  background:#fff;
+  display:none;
+  z-index:100;
+}
+
+/* SMALL IMAGE (PHONE FIT) */
+.detail img{
+  width:100%;
+  height:240px;
+  object-fit:cover;
+}
+
+/* CONTENT */
+.detail-content{
+  padding:14px;
+}
+
+.detail-title{
+  font-size:18px;
+  font-weight:700;
+}
+
+.detail-desc{
+  margin-top:6px;
+  font-size:13px;
+  color:#555;
+  line-height:1.4;
+}
+
+/* BACK */
+.back{
+  position:absolute;
+  top:10px;
+  left:10px;
+  background:rgba(0,0,0,0.4);
+  color:#fff;
+  padding:6px 10px;
+  border-radius:20px;
+  font-size:12px;
+  cursor:pointer;
+}
+
+</style>
 </head>
 
 <body>
 
-<main class="app-shell">
+<div class="header">🍊 BonBon Cafe</div>
 
-  <!-- HERO -->
-  <section class="hero">
-    <p>🍔 BonBon Cafe</p>
-    <h2>Shirin va mazali buyurtmalar</h2>
-    <p>Telegram ichida tez buyurtma bering 🚀</p>
-  </section>
+<!-- LIST -->
+<div class="list" id="list"></div>
 
-  <!-- ORDER CARD -->
-  <section class="card">
+<!-- DETAIL -->
+<div class="detail" id="detail">
 
-    <label>Mahsulot</label>
-    <select id="product">
-      <option>🍔 Burger</option>
-      <option>🍕 Pizza</option>
-      <option>🍰 Tort</option>
-      <option>☕ Coffee</option>
-    </select>
+  <div class="back" onclick="closeDetail()">← Back</div>
 
-    <label>Soni</label>
-    <div class="quantity-row">
-      <button id="decrement">-</button>
-      <input id="quantity" type="number" value="1" min="1">
-      <button id="increment">+</button>
-    </div>
+  <img id="dimg">
 
-    <label>Izoh</label>
-    <textarea id="note" placeholder="Masalan: achchiqsiz bo‘lsin"></textarea>
+  <div class="detail-content">
+    <div class="detail-title" id="dtitle"></div>
+    <div class="detail-desc" id="ddesc"></div>
+  </div>
 
-    <button class="primary-button" id="send-order">
-      📲 Buyurtma yuborish
-    </button>
-
-  </section>
-
-  <p class="status" id="status">BonBon tayyor 🍔</p>
-
-</main>
+</div>
 
 <script>
-  const tg = window.Telegram.WebApp;
-  tg.expand();
 
-  const qty = document.getElementById("quantity");
+const tg = window.Telegram.WebApp;
+tg.expand();
 
-  document.getElementById("increment").onclick = () => {
-    qty.value = Number(qty.value) + 1;
-  };
+/* 15 TA FOOD DATA */
+const foods = [
+  ["Burger Classic","Juicy beef burger with cheese","$5.50","1"],
+  ["Chicken Burger","Crispy chicken burger","$6.20","2"],
+  ["Double Burger","Double meat burger","$7.00","3"],
+  ["Cheese Burger","Cheese overload burger","$5.90","4"],
+  ["Pizza Italy","Mozzarella pizza","$7.90","5"],
+  ["Pepperoni Pizza","Spicy pepperoni","$8.40","6"],
+  ["Chicken Pizza","Chicken + cheese pizza","$7.20","7"],
+  ["Veggie Pizza","Healthy vegetables","$6.80","8"],
+  ["French Fries","Crispy fries","$2.50","9"],
+  ["Hot Dog","Classic hot dog","$3.20","10"],
+  ["Doner Kebab","Turkish style kebab","$6.90","11"],
+  ["Shawarma","Chicken shawarma","$5.80","12"],
+  ["Salad Fresh","Healthy salad","$4.50","13"],
+  ["Ice Cream","Cold dessert","$3.00","14"],
+  ["Cola Drink","Cold drink","$1.50","15"]
+];
 
-  document.getElementById("decrement").onclick = () => {
-    if (qty.value > 1) qty.value = Number(qty.value) - 1;
-  };
+/* RENDER LIST */
+const list = document.getElementById("list");
 
-  document.getElementById("send-order").onclick = () => {
-    const data = {
-      product: document.getElementById("product").value,
-      quantity: Number(qty.value),
-      note: document.getElementById("note").value
-    };
+foods.forEach(f=>{
+  const div = document.createElement("div");
+  div.className="card";
+  div.innerHTML=`
+    <img src="https://picsum.photos/200?${f[3]}" onclick="openDetail('${f[0]}','${f[1]}','${f[3]}')">
+    <div style="flex:1">
+      <div class="title">${f[0]}</div>
+      <div class="desc">${f[1]}</div>
+    </div>
+    <div class="price">${f[2]}</div>
+  `;
+  list.appendChild(div);
+});
 
-    tg.sendData(JSON.stringify(data));
+/* OPEN DETAIL */
+function openDetail(title,desc,img){
+  dimg.src="https://picsum.photos/600/400?"+img;
+  dtitle.innerText=title;
+  ddesc.innerText=desc;
+  detail.style.display="block";
+}
 
-    document.getElementById("status").innerText =
-      "Buyurtma yuborildi 🚀";
-  };
+/* CLOSE */
+function closeDetail(){
+  detail.style.display="none";
+}
+
 </script>
 
 </body>
