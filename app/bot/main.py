@@ -1,5 +1,4 @@
 import asyncio
-import json
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import Command, CommandStart
@@ -10,7 +9,6 @@ from app.config import get_settings
 from app.db.migrations import ensure_schema_ready
 from app.db.session import async_session_factory
 from app.services.guests import upsert_guest_contact
-from app.services.orders import create_order
 
 router = Router()
 
@@ -50,6 +48,16 @@ BOT_DESCRIPTION = (
 
 BOT_SHORT_DESCRIPTION = (
     "BON-BON: premium bonbonlar, desertlar, tortlar va sovga toplamlari."
+)
+
+BOT_DESCRIPTION = (
+    "BON-BON premium menyusi:\n"
+    "Mualliflik bonbonlari\n"
+    "Nafis tort va desertlar\n"
+    "Sovga uchun shirin toplamlari\n"
+    "Fresh pastry va non mahsulotlari\n"
+    "Coffee va premium ichimliklar\n"
+    "Bot: @bonik_testbot"
 )
 
 
@@ -94,31 +102,8 @@ async def language_handler(message: Message) -> None:
 
 @router.message(F.web_app_data)
 async def web_app_data_handler(message: Message) -> None:
-    payload = message.web_app_data.data if message.web_app_data else ""
-    settings = get_settings()
-
-    try:
-        data = json.loads(payload)
-    except json.JSONDecodeError:
-        await message.answer("Mini ilovadan kelgan ma'lumot JSON formatida emas.")
-        return
-
-    async with async_session_factory() as session:
-        order = await create_order(
-            session=session,
-            payload=data,
-            telegram_user=message.from_user,
-            admin_ids=settings.admin_ids,
-        )
-
-    items_text = ", ".join(
-        f"{item.product_title} x {item.quantity}" for item in order.items
-    )
     await message.answer(
-        "Buyurtma bazaga yozildi.\n"
-        f"Buyurtma raqami: #{order.id}\n"
-        f"Mahsulotlar: {items_text}\n"
-        f"Jami: {order.total_amount} {order.currency}"
+        "Mini ilova faqat menyuni ko'rish uchun ishlaydi. Buyurtma qabul qilinmaydi."
     )
 
 

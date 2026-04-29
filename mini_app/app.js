@@ -44,12 +44,12 @@ const statRevenue = document.querySelector("#stat-revenue");
 
 const isLoginPage = window.location.pathname === "/login";
 const isAdminPage = window.location.pathname === "/admin";
-let adminLoginName = window.localStorage.getItem("bonbon_admin_login") || "admin";
+let adminLoginName = "";
 let adminAccessToken = window.localStorage.getItem("bonbon_admin_access_token") || "";
 let adminTokenExpiresAt = Number(window.localStorage.getItem("bonbon_admin_token_expires_at") || 0);
 let isAdmin = false;
 let activeLanguage = "UZ";
-let activeAdminView = "orders";
+let activeAdminView = "categories";
 let activeMenuCategory = "all";
 let menuItems = [];
 let menuCategoryItems = [];
@@ -277,7 +277,7 @@ function openLoginSection() {
   setAdminLayout(false);
   adminPanel.classList.remove("is-hidden");
   adminLogin.classList.remove("is-hidden");
-  adminLoginInput.value = adminLoginName;
+  adminLoginInput.value = "";
   adminKeyInput.value = "";
   adminStatusText.textContent = "Admin login va parolni kiriting.";
   adminLogin.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -333,20 +333,6 @@ function showAdminPlaceholder(view) {
   activeAdminView = view;
   setActiveAdminView(view);
 
-  if (view === "orders") {
-    document.querySelector(".admin-heading h2").textContent = "Buyurtmalar boshqaruvi";
-    loadOrders();
-    return;
-  }
-
-  if (view === "stats") {
-    document.querySelector(".admin-heading h2").textContent = "Statistika";
-    ordersList.innerHTML = "";
-    adminStatusText.textContent = "Statistika yuqoridagi bloklarda ko'rsatilgan.";
-    loadStats();
-    return;
-  }
-
   if (view === "categories") {
     loadCrudView("categories");
     return;
@@ -377,10 +363,12 @@ function showAdminPlaceholder(view) {
   }
 }
 
-adminMenuToggle.addEventListener("click", () => {
-  const isCollapsed = adminMenuList.classList.toggle("is-collapsed");
-  adminMenuToggle.setAttribute("aria-expanded", String(!isCollapsed));
-});
+if (adminMenuToggle && adminMenuList) {
+  adminMenuToggle.addEventListener("click", () => {
+    const isCollapsed = adminMenuList.classList.toggle("is-collapsed");
+    adminMenuToggle.setAttribute("aria-expanded", String(!isCollapsed));
+  });
+}
 
 adminViewButtons.forEach((button) => {
   button.addEventListener("click", () => {
@@ -391,6 +379,30 @@ adminViewButtons.forEach((button) => {
 
     showAdminPlaceholder(button.dataset.adminView);
   });
+});
+
+userLoginToggle.addEventListener("pointerenter", () => {
+  userLoginToggle.classList.add("is-hovered");
+});
+
+userLoginToggle.addEventListener("pointerleave", () => {
+  userLoginToggle.classList.remove("is-hovered", "is-pressed");
+});
+
+userLoginToggle.addEventListener("pointerdown", () => {
+  userLoginToggle.classList.add("is-pressed");
+});
+
+userLoginToggle.addEventListener("pointerup", () => {
+  userLoginToggle.classList.remove("is-pressed");
+});
+
+userLoginToggle.addEventListener("pointercancel", () => {
+  userLoginToggle.classList.remove("is-hovered", "is-pressed");
+});
+
+userLoginToggle.addEventListener("blur", () => {
+  userLoginToggle.classList.remove("is-hovered", "is-pressed");
 });
 
 userLoginToggle.addEventListener("click", async () => {
@@ -534,6 +546,60 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function loadImage(file) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Rasmni o'qib bo'lmadi."));
+    image.src = URL.createObjectURL(file);
+  });
+}
+
+async function imageFileToDataUrl(file) {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Faqat rasm fayl tanlang.");
+  }
+
+  if (file.type === "image/svg+xml") {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("Rasmni yuklab bo'lmadi."));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  const image = await loadImage(file);
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  const maxEncodedLength = 60000;
+  const sizes = [640, 520, 420, 320];
+  const qualities = [0.76, 0.64, 0.52, 0.42];
+  let result = "";
+
+  for (const maxSize of sizes) {
+    const scale = Math.min(1, maxSize / Math.max(image.naturalWidth, image.naturalHeight));
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+    canvas.width = width;
+    canvas.height = height;
+    context.fillStyle = "#fff";
+    context.fillRect(0, 0, width, height);
+    context.drawImage(image, 0, 0, width, height);
+
+    for (const quality of qualities) {
+      result = canvas.toDataURL("image/jpeg", quality);
+      if (result.length <= maxEncodedLength) {
+        URL.revokeObjectURL(image.src);
+        return result;
+      }
+    }
+  }
+
+  URL.revokeObjectURL(image.src);
+  return result;
+}
+
 async function adminApi(path, options = {}) {
   const response = await fetch(path, {
     ...options,
@@ -627,6 +693,17 @@ function renderField(field, item) {
       <label class="admin-check">
         <input ${commonAttrs} type="checkbox" ${value ? "checked" : ""} />
         <span>${field.label}</span>
+      </label>
+    `;
+  }
+
+  if (field.name === "image_url") {
+    return `
+      <label class="image-upload-field">${field.label}
+        <input ${commonAttrs} type="url" placeholder="https://... yoki rasm yuklang" value="${escapeHtml(value)}" />
+        <input class="image-upload-input" type="file" accept="image/*" data-image-upload-for="${field.name}" />
+        <span class="image-upload-hint">Rasm tanlang yoki URL qoldiring</span>
+        ${value ? `<img class="image-upload-preview" src="${escapeHtml(value)}" alt="" />` : `<img class="image-upload-preview is-hidden" alt="" />`}
       </label>
     `;
   }
@@ -1164,10 +1241,6 @@ async function checkAdmin() {
     clearAdminToken();
   }
 
-  if (isLoginPage) {
-    openLoginSection();
-  }
-
   if (isAdminPage) {
     adminPanel.classList.remove("is-hidden");
   }
@@ -1181,6 +1254,8 @@ async function checkAdmin() {
   isAdmin = Boolean(me.is_admin);
 
   if (isAdmin && isLoginPage) {
+    adminLogin.classList.add("is-hidden");
+    setLoginLayout(false);
     window.location.href = "/admin";
     return;
   }
@@ -1200,14 +1275,18 @@ async function checkAdmin() {
     adminLogin.classList.add("is-hidden");
     setLoginLayout(false);
     setAdminLayout(true);
-    setActiveAdminView("orders");
-    activeAdminView = "orders";
-    document.querySelector(".admin-heading h2").textContent = "Buyurtmalar boshqaruvi";
-    await loadOrders();
+    setActiveAdminView("categories");
+    activeAdminView = "categories";
+    await loadCrudView("categories");
     return;
   }
 
   if (isLoginPage || isAdminPage) {
+    if (isLoginPage) {
+      openLoginSection();
+      return;
+    }
+
     setAdminLayout(false);
     adminLogin.classList.remove("is-hidden");
     adminStatusText.textContent = "Sessiya tugagan. Admin login va parolni qayta kiriting.";
@@ -1217,7 +1296,6 @@ async function checkAdmin() {
 saveAdminKeyButton.addEventListener("click", async () => {
   adminLoginName = adminLoginInput.value.trim() || "admin";
   const adminPassword = adminKeyInput.value.trim();
-  window.localStorage.setItem("bonbon_admin_login", adminLoginName);
   clearAdminToken();
 
   const response = await fetch("/api/admin/login", {
@@ -1235,6 +1313,7 @@ saveAdminKeyButton.addEventListener("click", async () => {
   }
 
   storeAdminToken(await response.json());
+  adminLogin.classList.add("is-hidden");
   adminKeyInput.value = "";
   window.location.href = "/admin";
 });
@@ -1253,6 +1332,35 @@ adminKeyInput.addEventListener("keydown", (event) => {
 
 refreshOrdersButton.addEventListener("click", () => {
   showAdminPlaceholder(activeAdminView);
+});
+
+ordersList.addEventListener("change", async (event) => {
+  const fileInput = event.target.closest("[data-image-upload-for]");
+  if (!fileInput || !fileInput.files?.length) {
+    return;
+  }
+
+  const form = fileInput.closest("form");
+  const targetInput = form?.elements[fileInput.dataset.imageUploadFor];
+  const preview = fileInput.parentElement?.querySelector(".image-upload-preview");
+  if (!targetInput) {
+    return;
+  }
+
+  adminStatusText.textContent = "Rasm tayyorlanmoqda...";
+  try {
+    const dataUrl = await imageFileToDataUrl(fileInput.files[0]);
+    targetInput.value = dataUrl;
+    if (preview) {
+      preview.src = dataUrl;
+      preview.classList.remove("is-hidden");
+    }
+    adminStatusText.textContent = "Rasm tayyor. Saqlashni bosing.";
+  } catch (error) {
+    adminStatusText.textContent = error.message;
+  } finally {
+    fileInput.value = "";
+  }
 });
 
 ordersList.addEventListener("click", async (event) => {
@@ -1283,12 +1391,6 @@ ordersList.addEventListener("click", async (event) => {
     return;
   }
 
-  const button = event.target.closest("[data-order-id]");
-  if (!button) {
-    return;
-  }
-
-  await updateStatus(button.dataset.orderId, button.dataset.status);
 });
 
 ordersList.addEventListener("submit", async (event) => {

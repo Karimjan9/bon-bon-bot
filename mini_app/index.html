@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Bon Bon Mini App</title>
-    <link rel="stylesheet" href="/static/styles.css" />
+    <link rel="stylesheet" href="/static/styles.css?v=admin-brand-shop-1" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body>
@@ -92,35 +92,20 @@
         <aside class="admin-sidebar" aria-label="Admin menu">
           <div class="admin-brand">
             <span class="admin-brand-mark" aria-hidden="true">
-              <span>BB</span>
+              <svg viewBox="0 0 24 24">
+                <path d="M6.5 9.5h11l-.8 9A2.8 2.8 0 0 1 14 21h-4a2.8 2.8 0 0 1-2.7-2.5l-.8-9Z" />
+                <path d="M9 9.5V7a3 3 0 0 1 6 0v2.5" />
+                <path d="M8 13h8" />
+                <path d="M10 16h4" />
+                <path d="M7 3.5h2.5" />
+                <path d="M14.5 3.5H17" />
+              </svg>
             </span>
             <div>
               <strong>Bon-Bon</strong>
               <span>Admin</span>
             </div>
           </div>
-
-          <button
-            class="admin-menu-toggle"
-            id="admin-menu-toggle"
-            type="button"
-            aria-expanded="false"
-            aria-controls="admin-menu-list"
-          >
-            <span>Menu</span>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="m6 9 6 6 6-6" />
-            </svg>
-          </button>
-
-          <nav class="admin-menu is-collapsed" id="admin-menu-list" aria-label="Admin bo'limlari">
-            <button class="admin-nav-button is-active" data-admin-view="orders" type="button">
-              Buyurtmalar
-            </button>
-            <button class="admin-nav-button" data-admin-view="stats" type="button">
-              Statistika
-            </button>
-          </nav>
 
           <div class="admin-sidebar-bottom" aria-label="Katalog boshqaruvi">
             <button class="admin-bottom-button" data-admin-view="categories" type="button">
@@ -141,9 +126,6 @@
             <button class="admin-bottom-button" data-admin-view="addon-links" type="button">
               Group Addonlar
             </button>
-            <button class="admin-bottom-button" id="refresh-orders" type="button">
-              Yangilash
-            </button>
           </div>
         </aside>
 
@@ -151,35 +133,22 @@
           <div class="admin-heading">
             <div>
               <p class="eyebrow">Admin</p>
-              <h2>Buyurtmalar boshqaruvi</h2>
+              <h2>Katalog boshqaruvi</h2>
             </div>
+            <button class="admin-refresh-button" id="refresh-orders" type="button" aria-label="Joriy bo'limni yangilash">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4" />
+                <path d="M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4" />
+              </svg>
+            </button>
           </div>
 
-          <div class="stats-grid" id="stats-grid">
-            <div>
-              <span>Jami</span>
-              <strong id="stat-total">0</strong>
-            </div>
-            <div>
-              <span>Yangi</span>
-              <strong id="stat-new">0</strong>
-            </div>
-            <div>
-              <span>Jarayonda</span>
-              <strong id="stat-processing">0</strong>
-            </div>
-            <div>
-              <span>Daromad</span>
-              <strong id="stat-revenue">0</strong>
-            </div>
-          </div>
-
-          <div class="admin-login" id="admin-login">
+          <div class="admin-login is-hidden" id="admin-login">
             <label for="admin-login-name">Admin login</label>
-            <input id="admin-login-name" type="text" placeholder="admin" autocomplete="username" />
+            <input id="admin-login-name" type="text" placeholder="admin" autocomplete="off" />
             <label for="admin-key">Admin parol</label>
             <div class="admin-login-row">
-              <input id="admin-key" type="password" placeholder="ADMIN_PASSWORD" autocomplete="current-password" />
+              <input id="admin-key" type="password" placeholder="ADMIN_PASSWORD" autocomplete="new-password" />
               <button class="ghost-button" id="save-admin-key" type="button">
                 Kirish
               </button>
@@ -192,6 +161,6 @@
       </section>
     </main>
 
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=admin-auth-hide-1"></script>
   </body>
 </html>

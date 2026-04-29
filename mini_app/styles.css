@@ -144,9 +144,11 @@ body {
   width: 30px;
   height: 30px;
   place-items: center;
+  border: 0;
   padding: 0;
   color: #000;
   background: transparent;
+  cursor: pointer;
 }
 
 .icon-button svg {
@@ -168,15 +170,29 @@ body {
 }
 
 .profile-button {
-  color: #0077b6;
-}
-
-.profile-button {
   display: inline-flex;
   width: auto;
-  min-width: 30px;
+  min-width: 38px;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 0 2px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 4px 9px;
+  color: var(--admin-green);
+  background: rgba(15, 107, 69, 0.04);
+  box-shadow: inset 0 0 0 1px rgba(15, 107, 69, 0.04);
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    color 0.18s ease,
+    transform 0.12s ease;
+}
+
+.profile-button svg {
+  transition: transform 0.14s ease, stroke-width 0.14s ease;
 }
 
 .profile-button .profile-name {
@@ -196,6 +212,34 @@ body {
 
 .profile-button.is-authenticated {
   color: var(--admin-green);
+}
+
+.profile-button:hover,
+.profile-button.is-hovered {
+  border-color: rgba(15, 107, 69, 0.34);
+  color: #075234;
+  background: #dff4e8;
+  box-shadow: 0 8px 18px rgba(15, 107, 69, 0.18);
+  transform: translateY(-2px);
+}
+
+.profile-button:hover svg,
+.profile-button.is-hovered svg {
+  stroke-width: 2.4;
+  transform: scale(1.08);
+}
+
+.profile-button:active,
+.profile-button.is-pressed {
+  border-color: rgba(15, 107, 69, 0.48);
+  background: #ccebd9;
+  box-shadow: inset 0 3px 7px rgba(15, 107, 69, 0.24);
+  transform: translateY(1px) scale(0.96);
+}
+
+.profile-button:active svg,
+.profile-button.is-pressed svg {
+  transform: scale(0.92);
 }
 
 .icon-button:focus-visible,
@@ -773,20 +817,22 @@ h1 {
   height: 48px;
   place-items: center;
   border-radius: 50%;
-  color: var(--admin-green);
+  color: #06452e;
   font-family: Verdana, Geneva, sans-serif;
   font-size: 13px;
   font-weight: 900;
   background: #fff;
+  box-shadow: 0 8px 18px rgba(2, 34, 21, 0.16);
 }
 
-.admin-brand-mark span {
-  display: grid;
+.admin-brand-mark svg {
   width: 31px;
-  height: 23px;
-  place-items: center;
-  border: 2px solid currentColor;
-  transform: skew(-8deg);
+  height: 31px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.4;
 }
 
 .admin-brand strong,
@@ -902,6 +948,38 @@ h1 {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+}
+
+.admin-refresh-button {
+  display: grid;
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--admin-line);
+  border-radius: 12px;
+  color: var(--admin-green);
+  cursor: pointer;
+  background: #fff;
+  box-shadow: 0 8px 18px rgba(15, 107, 69, 0.1);
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.admin-refresh-button svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.2;
+}
+
+.admin-refresh-button:hover {
+  color: #fff;
+  background: var(--admin-green);
+  transform: translateY(-1px);
 }
 
 h2 {
@@ -1100,6 +1178,37 @@ textarea {
 
 .crud-form-grid textarea {
   min-height: 76px;
+}
+
+.image-upload-field {
+  grid-column: 1 / -1;
+}
+
+.image-upload-input {
+  padding: 11px;
+  border: 1px dashed rgba(15, 107, 69, 0.32);
+  color: #244b35;
+  cursor: pointer;
+  font-family: Verdana, Geneva, sans-serif;
+  font-size: 12px;
+  background: #f6fff9;
+}
+
+.image-upload-hint {
+  color: #5f826f;
+  font-family: Verdana, Geneva, sans-serif;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.image-upload-preview {
+  display: block;
+  width: 120px;
+  height: 92px;
+  border: 1px solid var(--admin-line);
+  border-radius: 12px;
+  object-fit: cover;
+  background: #fff;
 }
 
 .admin-check {
@@ -1359,6 +1468,11 @@ textarea {
   .crud-actions {
     display: grid;
     grid-template-columns: 1fr;
+  }
+
+  .admin-heading {
+    display: flex;
+    align-items: flex-start;
   }
 }
 
