@@ -1,174 +1,128 @@
 <!doctype html>
 <html lang="uz">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>BonBon Cafe</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BonBon Cafe</title>
 
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+  :root{
+    --orange:#FF6B00;
+    --bg:#F2F2F7;
+  }
 
-<style>
+  body{
+    margin:0;
+    font-family:'Inter',-apple-system;
+    background:var(--bg);
+  }
 
-:root{
-  --orange:#FF6B00;
-  --bg:#F2F2F7;
-}
+  .header{
+    padding:14px;
+    font-weight:600;
+    background:rgba(255,255,255,0.7);
+    backdrop-filter:blur(20px);
+  }
 
-body{
-  margin:0;
-  font-family:'Inter',-apple-system;
-  background:var(--bg);
-}
+  .list{
+    padding:12px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
 
-/* HEADER */
-.header{
-  padding:14px;
-  font-weight:600;
-  background:rgba(255,255,255,0.7);
-  backdrop-filter:blur(20px);
-}
+  .card{
+    display:flex;
+    gap:12px;
+    padding:12px;
+    background:#fff;
+    border-radius:16px;
+    align-items:center;
+    box-shadow:0 4px 12px rgba(0,0,0,0.05);
+    cursor:pointer;
+  }
 
-/* LIST */
-.list{
-  padding:12px;
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-}
+  .card img{
+    width:70px;
+    height:70px;
+    border-radius:14px;
+    object-fit:cover;
+  }
 
-/* CARD */
-.card{
-  display:flex;
-  gap:12px;
-  padding:12px;
-  background:#fff;
-  border-radius:16px;
-  align-items:center;
-  box-shadow:0 4px 12px rgba(0,0,0,0.05);
-  cursor:pointer;
-}
+  .title{
+    font-weight:600;
+    font-size:14px;
+  }
 
-.card img{
-  width:70px;
-  height:70px;
-  border-radius:14px;
-  object-fit:cover;
-}
+  .desc{
+    font-size:12px;
+    color:#777;
+  }
 
-.title{
-  font-weight:600;
-  font-size:14px;
-}
+  .price{
+    color:var(--orange);
+    font-weight:700;
+  }
 
-.desc{
-  font-size:12px;
-  color:#777;
-}
+  .detail{
+    position:fixed;
+    inset:0;
+    background:#fff;
+    display:none;
+    z-index:100;
+  }
 
-/* PRICE */
-.price{
-  color:var(--orange);
-  font-weight:700;
-  font-size:14px;
-}
+  .detail img{
+    width:100%;
+    height:240px;
+    object-fit:cover;
+  }
 
-/* DETAIL PAGE */
-.detail{
-  position:fixed;
-  inset:0;
-  background:#fff;
-  display:none;
-  z-index:100;
-}
+  .detail-content{
+    padding:14px;
+  }
 
-/* SMALL IMAGE (PHONE FIT) */
-.detail img{
-  width:100%;
-  height:240px;
-  object-fit:cover;
-}
-
-/* CONTENT */
-.detail-content{
-  padding:14px;
-}
-
-.detail-title{
-  font-size:18px;
-  font-weight:700;
-}
-
-.detail-desc{
-  margin-top:6px;
-  font-size:13px;
-  color:#555;
-  line-height:1.4;
-}
-
-/* BACK */
-.back{
-  position:absolute;
-  top:10px;
-  left:10px;
-  background:rgba(0,0,0,0.4);
-  color:#fff;
-  padding:6px 10px;
-  border-radius:20px;
-  font-size:12px;
-  cursor:pointer;
-}
-
-</style>
+  .back{
+    position:absolute;
+    top:10px;
+    left:10px;
+    background:rgba(0,0,0,0.4);
+    color:#fff;
+    padding:6px 10px;
+    border-radius:20px;
+    cursor:pointer;
+  }
+  </style>
 </head>
 
 <body>
 
 <div class="header">🍊 BonBon Cafe</div>
 
-<!-- LIST -->
 <div class="list" id="list"></div>
 
-<!-- DETAIL -->
 <div class="detail" id="detail">
-
   <div class="back" onclick="closeDetail()">← Back</div>
-
   <img id="dimg">
-
   <div class="detail-content">
-    <div class="detail-title" id="dtitle"></div>
-    <div class="detail-desc" id="ddesc"></div>
+    <div id="dtitle"></div>
+    <div id="ddesc"></div>
   </div>
-
 </div>
 
 <script>
-
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-/* 15 TA FOOD DATA */
 const foods = [
-  ["Burger Classic","Juicy beef burger with cheese","$5.50","1"],
-  ["Chicken Burger","Crispy chicken burger","$6.20","2"],
-  ["Double Burger","Double meat burger","$7.00","3"],
-  ["Cheese Burger","Cheese overload burger","$5.90","4"],
-  ["Pizza Italy","Mozzarella pizza","$7.90","5"],
-  ["Pepperoni Pizza","Spicy pepperoni","$8.40","6"],
-  ["Chicken Pizza","Chicken + cheese pizza","$7.20","7"],
-  ["Veggie Pizza","Healthy vegetables","$6.80","8"],
-  ["French Fries","Crispy fries","$2.50","9"],
-  ["Hot Dog","Classic hot dog","$3.20","10"],
-  ["Doner Kebab","Turkish style kebab","$6.90","11"],
-  ["Shawarma","Chicken shawarma","$5.80","12"],
-  ["Salad Fresh","Healthy salad","$4.50","13"],
-  ["Ice Cream","Cold dessert","$3.00","14"],
-  ["Cola Drink","Cold drink","$1.50","15"]
+  ["Burger Classic","Juicy beef burger","$5.50","1"],
+  ["Pizza","Mozzarella pizza","$7.90","2"],
+  ["Fries","Crispy fries","$2.50","3"]
 ];
 
-/* RENDER LIST */
 const list = document.getElementById("list");
 
 foods.forEach(f=>{
@@ -185,7 +139,6 @@ foods.forEach(f=>{
   list.appendChild(div);
 });
 
-/* OPEN DETAIL */
 function openDetail(title,desc,img){
   dimg.src="https://picsum.photos/600/400?"+img;
   dtitle.innerText=title;
@@ -193,11 +146,9 @@ function openDetail(title,desc,img){
   detail.style.display="block";
 }
 
-/* CLOSE */
 function closeDetail(){
   detail.style.display="none";
 }
-
 </script>
 
 </body>

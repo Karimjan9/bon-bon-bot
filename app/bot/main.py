@@ -14,6 +14,28 @@ from app.services.orders import create_order
 
 router = Router()
 
+# =========================
+# BOT DESCRIPTION
+# =========================
+BOT_DESCRIPTION = (
+    "BON-BON premium menyusi:\n"
+    "🍫 Mualliflik bonbonlari\n"
+    "🎂 Nafis tort va desertlar\n"
+    "🎁 Sovga uchun shirin toplamlari\n"
+    "🥐 Fresh pastry va non mahsulotlari\n"
+    "☕ Coffee va premium ichimliklar\n"
+    "🚚 Yetkazib berish: 10:00-22:00\n"
+    "💬 Bot: @bonik_testbot"
+)
+
+BOT_SHORT_DESCRIPTION = (
+    "BON-BON: premium bonbonlar, desertlar va ichimliklar."
+)
+
+async def configure_bot_profile(bot: Bot) -> None:
+    await bot.set_my_description(description=BOT_DESCRIPTION)
+    await bot.set_my_short_description(short_description=BOT_SHORT_DESCRIPTION)
+
 
 # =========================
 # BOT START
@@ -54,7 +76,7 @@ async def language_handler(message: Message) -> None:
 
 
 # =========================
-# WEB APP ORDER (SAFE VERSION)
+# WEB APP ORDER
 # =========================
 @router.message(F.web_app_data)
 async def web_app_data_handler(message: Message) -> None:
@@ -64,7 +86,7 @@ async def web_app_data_handler(message: Message) -> None:
         payload = message.web_app_data.data
         data = json.loads(payload)
     except Exception:
-        await message.answer("❌ WebApp data xato yoki buzilgan!")
+        await message.answer("❌ WebApp data xato!")
         return
 
     try:
@@ -100,7 +122,7 @@ async def id_handler(message: Message) -> None:
 
 
 # =========================
-# MAIN APP (STABLE STARTUP)
+# MAIN
 # =========================
 async def main() -> None:
     settings = get_settings()
@@ -112,11 +134,12 @@ async def main() -> None:
     dp = Dispatcher()
     dp.include_router(router)
 
-    # ⚡ SAFE DB INIT (crash qilmasin)
     try:
         await ensure_schema_ready()
     except Exception as e:
         print(f"⚠ DB error ignored: {e}")
+
+    await configure_bot_profile(bot)
 
     await bot.delete_webhook(drop_pending_updates=True)
 
