@@ -66,6 +66,7 @@ ADMIN_TOKEN_TTL_SECONDS = 6 * 60 * 60
 MAX_IMAGE_UPLOAD_BYTES = 750_000
 IMAGE_EXTENSIONS = {
     "image/jpeg": ".jpg",
+    "image/jpg": ".jpg",
     "image/png": ".png",
     "image/webp": ".webp",
 }
@@ -435,7 +436,7 @@ def validate_image_upload(data: bytes, content_type: str) -> str:
     if extension is None:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="Faqat JPEG, PNG yoki WebP rasm yuklang.",
+            detail="Rasm optimizatsiyadan keyin JPEG, PNG yoki WebP bo'lishi kerak.",
         )
 
     if not data:
@@ -450,7 +451,7 @@ def validate_image_upload(data: bytes, content_type: str) -> str:
             detail="Rasm hajmi 750 KB dan oshmasin.",
         )
 
-    is_jpeg = content_type == "image/jpeg" and data.startswith(b"\xff\xd8\xff")
+    is_jpeg = content_type in {"image/jpeg", "image/jpg"} and data.startswith(b"\xff\xd8\xff")
     is_png = content_type == "image/png" and data.startswith(b"\x89PNG\r\n\x1a\n")
     is_webp = (
         content_type == "image/webp"

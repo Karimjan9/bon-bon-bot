@@ -911,15 +911,10 @@ function loadImage(file) {
 }
 
 function canvasToBlob(canvas, type, quality) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     canvas.toBlob(
       (blob) => {
-        if (blob) {
-          resolve(blob);
-          return;
-        }
-
-        reject(new Error("Rasmni optimizatsiya qilib bo'lmadi."));
+        resolve(blob);
       },
       type,
       quality,
@@ -928,9 +923,8 @@ function canvasToBlob(canvas, type, quality) {
 }
 
 async function imageFileToOptimizedBlob(file) {
-  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-  if (!allowedTypes.includes(file.type)) {
-    throw new Error("Faqat JPEG, PNG yoki WebP rasm tanlang.");
+  if (file.type && !file.type.startsWith("image/")) {
+    throw new Error("Faqat rasm fayl tanlang.");
   }
 
   if (file.size > 8 * 1024 * 1024) {
@@ -959,6 +953,10 @@ async function imageFileToOptimizedBlob(file) {
     for (const type of outputTypes) {
       for (const quality of qualities) {
         const blob = await canvasToBlob(canvas, type, quality);
+        if (!blob) {
+          continue;
+        }
+
         fallbackBlob = blob;
         if (blob.type === type && blob.size <= maxUploadBytes) {
           return blob;
@@ -1094,8 +1092,8 @@ function renderField(field, item) {
     return `
       <label class="image-upload-field">${field.label}
         <input ${commonAttrs} type="url" placeholder="https://... yoki rasm yuklang" value="${escapeHtml(value)}" />
-        <input class="image-upload-input" type="file" accept="image/jpeg,image/png,image/webp" data-image-upload-for="${field.name}" />
-        <span class="image-upload-hint">JPEG, PNG yoki WebP tanlang. Rasm kichraytirilib fayl sifatida saqlanadi.</span>
+        <input class="image-upload-input" type="file" accept="image/*" data-image-upload-for="${field.name}" />
+        <span class="image-upload-hint">Rasm tanlang. Tizim uni kichraytirib WebP yoki JPEG fayl sifatida saqlaydi.</span>
         ${
           value
             ? `<img class="image-upload-preview" src="${escapeHtml(value)}" alt="" loading="lazy" decoding="async" />`
