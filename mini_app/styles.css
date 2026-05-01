@@ -1348,6 +1348,56 @@ textarea {
 .orders-list {
   display: grid;
   gap: 12px;
+  min-width: 0;
+}
+
+.admin-table-shell {
+  max-height: min(68vh, 620px);
+  overflow: auto;
+  border: 1px solid var(--admin-line);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.admin-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: separate;
+  border-spacing: 0;
+  color: #183426;
+  font-family: Verdana, Geneva, sans-serif;
+  font-size: 12px;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--admin-line);
+  text-align: left;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+.admin-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  color: var(--admin-green-dark);
+  font-size: 11px;
+  text-transform: uppercase;
+  background: #eaf8f0;
+}
+
+.admin-table td span {
+  display: block;
+  margin-top: 4px;
+  color: #6a7f72;
+}
+
+.admin-table a {
+  color: var(--admin-green);
+  font-weight: 800;
+  text-decoration: none;
 }
 
 .admin-crud-form {

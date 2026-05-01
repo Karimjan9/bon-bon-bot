@@ -45,13 +45,14 @@ const statProcessing = document.querySelector("#stat-processing");
 const statRevenue = document.querySelector("#stat-revenue");
 
 const isLoginPage = window.location.pathname === "/login";
-const isAdminPage = window.location.pathname === "/admin";
+const isAdminPage = window.location.pathname === "/admin" || window.location.pathname === "/admin/guests";
+const initialAdminView = window.location.pathname === "/admin/guests" ? "guests" : "categories";
 let adminLoginName = "";
 let adminAccessToken = window.localStorage.getItem("bonbon_admin_access_token") || "";
 let adminTokenExpiresAt = Number(window.localStorage.getItem("bonbon_admin_token_expires_at") || 0);
 let isAdmin = false;
 let activeLanguage = "UZ";
-let activeAdminView = "categories";
+let activeAdminView = initialAdminView;
 let activeCrudRequestId = 0;
 let activeMenuCategory = "all";
 let menuItems = [];
@@ -724,6 +725,16 @@ adminViewButtons.forEach((button) => {
   button.addEventListener("click", () => {
     if (!isAdmin) {
       openLoginSection();
+      return;
+    }
+
+    if (button.dataset.adminView === "guests") {
+      window.location.href = "/admin/guests";
+      return;
+    }
+
+    if (window.location.pathname === "/admin/guests") {
+      window.location.href = "/admin";
       return;
     }
 
@@ -1478,21 +1489,49 @@ function orderTemplate(order) {
   `;
 }
 
-function guestTemplate(guest) {
+function guestTableRow(guest) {
   const name = [guest.first_name, guest.last_name].filter(Boolean).join(" ") || "Ism yo'q";
   const username = guest.username ? `@${guest.username}` : "username yo'q";
   const language = guest.language_code ? guest.language_code.toUpperCase() : "-";
 
   return `
-    <article class="order-item">
-      <div class="order-topline">
-        <p class="order-title">${escapeHtml(name)}</p>
-        <span class="badge">${escapeHtml(language)}</span>
-      </div>
-      <p class="order-meta">Telefon: <strong>${escapeHtml(guest.phone_number)}</strong></p>
-      <p class="order-meta">${escapeHtml(username)} | Telegram ID: ${guest.telegram_id}</p>
-      <p class="order-meta">Contact ID: ${guest.contact_user_id || "-"} | Saqlandi: ${formatDateTime(guest.created_at)}</p>
-    </article>
+    <tr>
+      <td>${guest.id}</td>
+      <td>
+        <strong>${escapeHtml(name)}</strong>
+        <span>${escapeHtml(username)}</span>
+      </td>
+      <td><a href="tel:${escapeHtml(guest.phone_number)}">${escapeHtml(guest.phone_number)}</a></td>
+      <td>${guest.telegram_id}</td>
+      <td>${guest.contact_user_id || "-"}</td>
+      <td>${escapeHtml(language)}</td>
+      <td>${formatDateTime(guest.created_at)}</td>
+      <td>${formatDateTime(guest.updated_at)}</td>
+    </tr>
+  `;
+}
+
+function guestsTableTemplate(guests) {
+  return `
+    <div class="admin-table-shell">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Mehmon</th>
+            <th>Telefon</th>
+            <th>Telegram ID</th>
+            <th>Contact ID</th>
+            <th>Til</th>
+            <th>Qo'shildi</th>
+            <th>Yangilandi</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${guests.map(guestTableRow).join("")}
+        </tbody>
+      </table>
+    </div>
   `;
 }
 
@@ -1630,7 +1669,7 @@ async function loadGuests() {
   const guests = await response.json();
   adminCache.guests = guests;
   ordersList.innerHTML = guests.length
-    ? guests.map(guestTemplate).join("")
+    ? guestsTableTemplate(guests)
     : `<p class="order-meta">Hali mehmon yo'q.</p>`;
   adminStatusText.textContent = `Mehmonlar: ${guests.length}`;
 }
@@ -1734,9 +1773,13 @@ async function checkAdmin() {
     adminLogin.classList.add("is-hidden");
     setLoginLayout(false);
     setAdminLayout(true);
-    setActiveAdminView("categories");
-    activeAdminView = "categories";
-    await loadCrudView("categories");
+    setActiveAdminView(initialAdminView);
+    activeAdminView = initialAdminView;
+    if (initialAdminView === "guests") {
+      await loadGuests();
+      return;
+    }
+    await loadCrudView(initialAdminView);
     return;
   }
 
