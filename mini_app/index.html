@@ -4,17 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Bon Bon Mini App</title>
-    <link rel="stylesheet" href="/static/styles.css?v=product-sheet-1" />
+    <link rel="stylesheet" href="/static/styles.css?v=image-upload-optimized-1" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body>
     <main class="app-shell">
       <header class="app-header" aria-label="Mini app yuqori menyusi">
-        <a class="brand" href="/" aria-label="Bon-Bon bosh sahifa">
-          <span class="brand-mark" aria-hidden="true">
-            <span>BB</span>
-          </span>
-          <span class="brand-name">Bon-Bon</span>
+        <a class="brand" href="/" aria-label="Bon Bon bosh sahifa">
+          <img class="brand-logo" src="/static/assets/bon-bon-logo.svg" alt="Bon Bon" />
         </a>
 
         <div class="header-actions">
@@ -76,7 +73,7 @@
               <path d="m18 6-12 12M6 6l12 12" />
             </svg>
           </button>
-          <img class="menu-modal-image" id="menu-modal-image" alt="" />
+          <img class="menu-modal-image" id="menu-modal-image" alt="" decoding="async" />
           <div class="menu-modal-content">
             <h2 id="menu-modal-title"></h2>
             <p id="menu-modal-description"></p>
@@ -92,14 +89,7 @@
         <aside class="admin-sidebar" aria-label="Admin menu">
           <div class="admin-brand">
             <span class="admin-brand-mark" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M6.5 9.5h11l-.8 9A2.8 2.8 0 0 1 14 21h-4a2.8 2.8 0 0 1-2.7-2.5l-.8-9Z" />
-                <path d="M9 9.5V7a3 3 0 0 1 6 0v2.5" />
-                <path d="M8 13h8" />
-                <path d="M10 16h4" />
-                <path d="M7 3.5h2.5" />
-                <path d="M14.5 3.5H17" />
-              </svg>
+              <img src="/static/assets/bon-bon-logo.svg" alt="" />
             </span>
             <div>
               <strong>Bon-Bon</strong>
@@ -161,6 +151,6 @@
       </section>
     </main>
 
-    <script src="/static/app.js?v=product-sheet-1"></script>
+    <script src="/static/app.js?v=image-upload-optimized-1"></script>
   </body>
 </html>

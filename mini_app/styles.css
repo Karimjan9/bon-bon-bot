@@ -82,17 +82,12 @@ body {
 }
 
 .app-header {
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
   min-height: 54px;
   margin-bottom: 20px;
-}
-
-.is-admin-view .app-header,
-.is-login-view .app-header {
-  display: flex;
 }
 
 .brand {
@@ -105,37 +100,14 @@ body {
   text-decoration: none;
 }
 
-.brand-mark {
-  display: grid;
+.brand-logo {
+  display: block;
   flex: 0 0 auto;
-  width: 46px;
-  height: 46px;
-  place-items: center;
-  margin-right: 10px;
-  border: 1px solid rgba(50, 31, 24, 0.14);
-  border-radius: 50%;
-  color: #1e57a8;
-  font-size: 13px;
-  font-weight: 900;
-  background: #fff;
+  width: 118px;
+  height: 56px;
+  border-radius: 12px;
+  object-fit: cover;
   box-shadow: 0 10px 24px rgba(87, 48, 28, 0.1);
-}
-
-.brand-mark span {
-  display: grid;
-  width: 30px;
-  height: 22px;
-  place-items: center;
-  border: 2px solid currentColor;
-  transform: skew(-8deg);
-}
-
-.brand-name {
-  overflow: hidden;
-  font-size: 16px;
-  line-height: 1.1;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .header-actions {
@@ -313,9 +285,79 @@ h1 {
   margin-top: 0;
 }
 
-.menu-toolbar,
+.menu-toolbar {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
+  gap: 4px;
+  align-items: center;
+  margin-right: -12px;
+  margin-left: -12px;
+}
+
+.menu-arrow-button {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  padding: 0;
+  color: #fff;
+  cursor: pointer;
+  background: #0b7fbd;
+}
+
+.menu-arrow-button svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.4;
+}
+
+.menu-category-window {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.menu-category-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 0;
+  scrollbar-width: thin;
+}
+
+.menu-category-button {
+  width: auto;
+  min-width: max-content;
+  min-height: 40px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 7px;
+  color: #2f2f2f;
+  cursor: pointer;
+  font-family: Verdana, Geneva, sans-serif;
+  font-size: 12px;
+  font-weight: 800;
+  background: #ecebea;
+  transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+
+.menu-category-button.is-active,
+.menu-category-button:hover {
+  color: #fff;
+  background: #0b7fbd;
+  transform: translateY(-1px);
+}
+
 .menu-title {
-  display: none;
+  margin: 0;
+  color: #111;
+  font-family: Verdana, Geneva, sans-serif;
+  font-size: 24px;
+  line-height: 1.15;
+  letter-spacing: 0;
 }
 
 .menu-grid {
@@ -952,28 +994,20 @@ h1 {
 }
 
 .admin-brand-mark {
-  display: grid;
+  display: block;
   flex: 0 0 auto;
-  width: 48px;
-  height: 48px;
-  place-items: center;
-  border-radius: 50%;
-  color: #06452e;
-  font-family: Verdana, Geneva, sans-serif;
-  font-size: 13px;
-  font-weight: 900;
-  background: #fff;
+  width: 72px;
+  height: 52px;
+  overflow: hidden;
+  border-radius: 12px;
   box-shadow: 0 8px 18px rgba(2, 34, 21, 0.16);
 }
 
-.admin-brand-mark svg {
-  width: 31px;
-  height: 31px;
-  fill: none;
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 2.4;
+.admin-brand-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .admin-brand strong,
@@ -1568,6 +1602,12 @@ textarea {
   .app-shell {
     max-width: 100vw;
     padding: 10px 10px 64px;
+  }
+
+  .menu-toolbar {
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+    margin-right: -14px;
+    margin-left: -14px;
   }
 
   .menu-grid {

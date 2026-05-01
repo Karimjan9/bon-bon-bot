@@ -405,7 +405,7 @@ function menuCardTemplate(item) {
   return `
     <article class="menu-card">
       <div class="menu-card-media">
-        <img class="menu-card-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.name)}" loading="lazy" />
+        <img class="menu-card-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.name)}" loading="lazy" decoding="async" />
         <span class="menu-media-pill menu-media-category">
           ${iconSvg(menuCategoryIcon(item))}
           <span>${escapeHtml(categoryName)}</span>
@@ -894,33 +894,54 @@ function escapeHtml(value) {
 function loadImage(file) {
   return new Promise((resolve, reject) => {
     const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("Rasmni o'qib bo'lmadi."));
-    image.src = URL.createObjectURL(file);
+    const objectUrl = URL.createObjectURL(file);
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error("Rasmni o'qib bo'lmadi."));
+    };
+    image.src = objectUrl;
   });
 }
 
-async function imageFileToDataUrl(file) {
-  if (!file.type.startsWith("image/")) {
-    throw new Error("Faqat rasm fayl tanlang.");
+function canvasToBlob(canvas, type, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve(blob);
+          return;
+        }
+
+        reject(new Error("Rasmni optimizatsiya qilib bo'lmadi."));
+      },
+      type,
+      quality,
+    );
+  });
+}
+
+async function imageFileToOptimizedBlob(file) {
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+  if (!allowedTypes.includes(file.type)) {
+    throw new Error("Faqat JPEG, PNG yoki WebP rasm tanlang.");
   }
 
-  if (file.type === "image/svg+xml") {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result || ""));
-      reader.onerror = () => reject(new Error("Rasmni yuklab bo'lmadi."));
-      reader.readAsDataURL(file);
-    });
+  if (file.size > 8 * 1024 * 1024) {
+    throw new Error("Rasm 8 MB dan katta bo'lmasin.");
   }
 
   const image = await loadImage(file);
   const canvas = document.createElement("canvas");
   const context = canvas.getContext("2d");
-  const maxEncodedLength = 60000;
-  const sizes = [640, 520, 420, 320];
-  const qualities = [0.76, 0.64, 0.52, 0.42];
-  let result = "";
+  const maxUploadBytes = 240000;
+  const sizes = [900, 760, 640, 520, 420];
+  const qualities = [0.82, 0.74, 0.66, 0.58, 0.5];
+  const outputTypes = ["image/webp", "image/jpeg"];
+  let fallbackBlob = null;
 
   for (const maxSize of sizes) {
     const scale = Math.min(1, maxSize / Math.max(image.naturalWidth, image.naturalHeight));
@@ -932,17 +953,41 @@ async function imageFileToDataUrl(file) {
     context.fillRect(0, 0, width, height);
     context.drawImage(image, 0, 0, width, height);
 
-    for (const quality of qualities) {
-      result = canvas.toDataURL("image/jpeg", quality);
-      if (result.length <= maxEncodedLength) {
-        URL.revokeObjectURL(image.src);
-        return result;
+    for (const type of outputTypes) {
+      for (const quality of qualities) {
+        const blob = await canvasToBlob(canvas, type, quality);
+        fallbackBlob = blob;
+        if (blob.type === type && blob.size <= maxUploadBytes) {
+          return blob;
+        }
       }
     }
   }
 
-  URL.revokeObjectURL(image.src);
-  return result;
+  return fallbackBlob;
+}
+
+async function uploadImageFile(file) {
+  const blob = await imageFileToOptimizedBlob(file);
+  if (!blob) {
+    throw new Error("Rasmni optimizatsiya qilib bo'lmadi.");
+  }
+
+  const response = await fetch("/api/admin/uploads/images", {
+    method: "POST",
+    headers: {
+      "Content-Type": blob.type || "image/jpeg",
+      ...authHeaders(),
+    },
+    body: blob,
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || "Rasmni yuklab bo'lmadi.");
+  }
+
+  return response.json();
 }
 
 async function adminApi(path, options = {}) {
@@ -1046,9 +1091,13 @@ function renderField(field, item) {
     return `
       <label class="image-upload-field">${field.label}
         <input ${commonAttrs} type="url" placeholder="https://... yoki rasm yuklang" value="${escapeHtml(value)}" />
-        <input class="image-upload-input" type="file" accept="image/*" data-image-upload-for="${field.name}" />
-        <span class="image-upload-hint">Rasm tanlang yoki URL qoldiring</span>
-        ${value ? `<img class="image-upload-preview" src="${escapeHtml(value)}" alt="" />` : `<img class="image-upload-preview is-hidden" alt="" />`}
+        <input class="image-upload-input" type="file" accept="image/jpeg,image/png,image/webp" data-image-upload-for="${field.name}" />
+        <span class="image-upload-hint">JPEG, PNG yoki WebP tanlang. Rasm kichraytirilib fayl sifatida saqlanadi.</span>
+        ${
+          value
+            ? `<img class="image-upload-preview" src="${escapeHtml(value)}" alt="" loading="lazy" decoding="async" />`
+            : `<img class="image-upload-preview is-hidden" alt="" loading="lazy" decoding="async" />`
+        }
       </label>
     `;
   }
@@ -1698,15 +1747,15 @@ ordersList.addEventListener("change", async (event) => {
     return;
   }
 
-  adminStatusText.textContent = "Rasm tayyorlanmoqda...";
+  adminStatusText.textContent = "Rasm kichraytirilib yuklanmoqda...";
   try {
-    const dataUrl = await imageFileToDataUrl(fileInput.files[0]);
-    targetInput.value = dataUrl;
+    const upload = await uploadImageFile(fileInput.files[0]);
+    targetInput.value = upload.url;
     if (preview) {
-      preview.src = dataUrl;
+      preview.src = upload.url;
       preview.classList.remove("is-hidden");
     }
-    adminStatusText.textContent = "Rasm tayyor. Saqlashni bosing.";
+    adminStatusText.textContent = `Rasm yuklandi (${Math.round(Number(upload.size || 0) / 1024)} KB). Saqlashni bosing.`;
   } catch (error) {
     adminStatusText.textContent = error.message;
   } finally {

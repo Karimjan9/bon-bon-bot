@@ -1,0 +1,17 @@
+[Unit]
+Description=Bon Bon Telegram bot polling service
+After=network.target mysql.service bon-bon-web.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/srv/bon-bon-bot
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/srv/bon-bon-bot/.venv/bin/python -m app.bot.main
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+

@@ -3,12 +3,14 @@ import hashlib
 import hmac
 import json
 import time
+import uuid
+from asyncio import to_thread
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated
 
 import uvicorn
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import select
@@ -59,12 +61,20 @@ from app.web.schemas import (
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 MINI_APP_DIR = BASE_DIR / "mini_app"
+IMAGE_UPLOAD_DIR = MINI_APP_DIR / "uploads" / "images"
 ADMIN_TOKEN_TTL_SECONDS = 6 * 60 * 60
+MAX_IMAGE_UPLOAD_BYTES = 750_000
+IMAGE_EXTENSIONS = {
+    "image/jpeg": ".jpg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+}
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     await ensure_schema_ready()
+    IMAGE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     yield
 
 
@@ -416,6 +426,47 @@ def apply_payload(model: object, payload: dict) -> None:
         setattr(model, field, value)
 
 
+def normalize_content_type(content_type: str | None) -> str:
+    return (content_type or "").split(";", 1)[0].strip().lower()
+
+
+def validate_image_upload(data: bytes, content_type: str) -> str:
+    extension = IMAGE_EXTENSIONS.get(content_type)
+    if extension is None:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Faqat JPEG, PNG yoki WebP rasm yuklang.",
+        )
+
+    if not data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Rasm fayli bo'sh.",
+        )
+
+    if len(data) > MAX_IMAGE_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Rasm hajmi 750 KB dan oshmasin.",
+        )
+
+    is_jpeg = content_type == "image/jpeg" and data.startswith(b"\xff\xd8\xff")
+    is_png = content_type == "image/png" and data.startswith(b"\x89PNG\r\n\x1a\n")
+    is_webp = (
+        content_type == "image/webp"
+        and len(data) >= 12
+        and data[:4] == b"RIFF"
+        and data[8:12] == b"WEBP"
+    )
+    if not (is_jpeg or is_png or is_webp):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Rasm formati noto'g'ri yoki buzilgan.",
+        )
+
+    return extension
+
+
 async def fetch_menu_item_read(session: AsyncSession, menu_item_id: int) -> MenuItem:
     result = await session.execute(
         select(MenuItem)
@@ -621,6 +672,35 @@ async def admin_addons(
 ) -> list[MenuItemAddonRead]:
     addons = await list_addons(session, active_only=False)
     return [serialize_addon(addon) for addon in addons]
+
+
+@app.post("/api/admin/uploads/images")
+async def admin_upload_image(
+    request: Request,
+    _: Annotated[dict | None, Depends(require_admin)],
+    content_length: Annotated[int | None, Header()] = None,
+    content_type: Annotated[str | None, Header()] = None,
+) -> dict[str, int | str]:
+    if content_length is not None and content_length > MAX_IMAGE_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Rasm hajmi 750 KB dan oshmasin.",
+        )
+
+    normalized_type = normalize_content_type(content_type)
+    data = await request.body()
+    extension = validate_image_upload(data, normalized_type)
+    IMAGE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+    file_name = f"{int(time.time())}-{uuid.uuid4().hex}{extension}"
+    target = IMAGE_UPLOAD_DIR / file_name
+    await to_thread(target.write_bytes, data)
+
+    return {
+        "url": f"/static/uploads/images/{file_name}",
+        "size": len(data),
+        "content_type": normalized_type,
+    }
 
 
 @app.post("/api/admin/categories", response_model=CategoryRead)

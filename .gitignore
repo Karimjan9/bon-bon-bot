@@ -63,6 +63,7 @@ db.sqlite3-journal
 storage/*.db
 storage/*.sqlite
 storage/*.sqlite3
+mini_app/uploads/
 
 # Flask stuff:
 instance/
