@@ -50,6 +50,7 @@ let adminTokenExpiresAt = Number(window.localStorage.getItem("bonbon_admin_token
 let isAdmin = false;
 let activeLanguage = "UZ";
 let activeAdminView = "categories";
+let activeCrudRequestId = 0;
 let activeMenuCategory = "all";
 let menuItems = [];
 let menuCategoryItems = [];
@@ -60,6 +61,119 @@ const adminCache = {
   addons: [],
   addonGroups: [],
   addonLinks: [],
+};
+
+const menuIcons = {
+  arrowRight: `
+    <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M5 12h14" />
+      <path d="m13 6 6 6-6 6" />
+    </svg>
+  `,
+  bottle: `
+    <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M10 2h4" />
+      <path d="M11 6h2" />
+      <path d="M9 10h6l1 10H8l1-10Z" />
+      <path d="M9.5 14h5" />
+    </svg>
+  `,
+  burger: `
+    <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 13h16" />
+      <path d="M5 13a7 7 0 0 1 14 0" />
+      <path d="M5 17h14" />
+      <path d="M7 21h10a3 3 0 0 0 3-3v-1H4v1a3 3 0 0 0 3 3Z" />
+      <path d="M8 9h.01M12 7h.01M16 9h.01" />
+    </svg>
+  `,
+  cake: `
+    <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 11h16" />
+      <path d="M5 11v8h14v-8" />
+      <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+      <path d="M8 15h.01M12 15h.01M16 15h.01" />
+    </svg>
+  `,
+  cheese: `
+    <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 19h16V8L4 13v6Z" />
+      <path d="M4 13 20 8" />
+      <path d="M8 16h.01M13 13h.01M16 17h.01" />
+    </svg>
+  `,
+  cloche: `
+    <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M4 17h16" />
+      <path d="M6 17a6 6 0 0 1 12 0" />
+      <path d="M12 7v2" />
+      <path d="M10 5h4" />
+      <path d="M5 20h14" />
+    </svg>
+  `,
+  coffee: `
+    <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M6 8h10v7a4 4 0 0 1-4 4H10a4 4 0 0 1-4-4V8Z" />
+      <path d="M16 10h1a3 3 0 0 1 0 6h-1" />
+      <path d="M8 3v2M12 3v2M16 3v2" />
+    </svg>
+  `,
+  fileText: `
+    <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7l-5-5Z" />
+      <path d="M14 2v5h5" />
+      <path d="M9 13h6" />
+      <path d="M9 17h6" />
+      <path d="M9 9h1" />
+    </svg>
+  `,
+  fries: `
+    <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="m7 7-.8-4" />
+      <path d="m11 7 .2-5" />
+      <path d="m15 7 1-4" />
+      <path d="M5 8h14l-1.4 13H6.4L5 8Z" />
+      <path d="M8 12h8" />
+    </svg>
+  `,
+  layers: `
+    <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="m12 3 8 4.5-8 4.5-8-4.5L12 3Z" />
+      <path d="m4 12 8 4.5 8-4.5" />
+      <path d="m4 16.5 8 4.5 8-4.5" />
+    </svg>
+  `,
+  leaf: `
+    <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M20 4c-7.5 0-12 4.5-12 12 7.5 0 12-4.5 12-12Z" />
+      <path d="M8 16 4 20" />
+    </svg>
+  `,
+  meat: `
+    <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M18.5 10.5a5.5 5.5 0 0 1-8.1 4.8l-1.8 1.8a2.5 2.5 0 1 1-3.6-3.6l1.8-1.8a5.5 5.5 0 1 1 11.7-1.2Z" />
+      <path d="M14.5 8.5h.01" />
+      <path d="M12 12h.01" />
+    </svg>
+  `,
+  star: `
+    <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1L12 16.9l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z" />
+    </svg>
+  `,
+  tag: `
+    <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M20 10 12 2H5v7l8 8 7-7Z" />
+      <path d="M8 6h.01" />
+    </svg>
+  `,
+  wrap: `
+    <svg class="menu-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M7 21 18.5 9.5a4.4 4.4 0 0 0-6.2-6.2L4.8 10.8a2.7 2.7 0 0 0 0 3.8L11.4 21H7Z" />
+      <path d="M9 8.5 15.5 15" />
+      <path d="M12.5 5.5 18 11" />
+    </svg>
+  `,
 };
 
 async function loadCatalog() {
@@ -81,6 +195,158 @@ async function loadCatalog() {
       statusText.textContent = "Menu hozircha yuklanmadi.";
     }
   }
+}
+
+function iconSvg(name) {
+  return menuIcons[name] || menuIcons.tag;
+}
+
+function isLavashItem(item) {
+  const value = `${item.name || ""} ${item.category?.name || ""}`.toLowerCase();
+  return value.includes("lavash");
+}
+
+function menuImageForItem(item) {
+  if (item.image_url) {
+    return item.image_url;
+  }
+
+  if (isLavashItem(item)) {
+    return "/static/assets/lavash-wrap.jpg";
+  }
+
+  return fallbackMenuImage(item);
+}
+
+function formatMenuMoney(amount) {
+  return String(Math.round(Number(amount || 0))).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+}
+
+function menuPriceTemplate(amount) {
+  return `
+    <span class="menu-price-value">${formatMenuMoney(amount)}</span>
+    <span class="menu-price-currency">so'm</span>
+  `;
+}
+
+function menuCategoryIcon(item) {
+  const category = `${item.category?.name || menuCategoryName(item.category_id)}`.toLowerCase();
+  const name = `${item.name || ""}`.toLowerCase();
+
+  if (category.includes("lavash") || name.includes("lavash")) {
+    return "wrap";
+  }
+  if (category.includes("burger")) {
+    return "burger";
+  }
+  if (category.includes("ichimlik")) {
+    return "coffee";
+  }
+  if (category.includes("desert")) {
+    return "cake";
+  }
+
+  return "tag";
+}
+
+function displayVariantName(name) {
+  const normalized = String(name || "").toLowerCase();
+  if (normalized.includes("kichik") || normalized.includes("mini")) {
+    return "Mini";
+  }
+  if (normalized.includes("standart") || normalized.includes("oddiy")) {
+    return "Oddiy";
+  }
+  if (normalized.includes("katta") || normalized.includes("big")) {
+    return "Big";
+  }
+  return name || "Oddiy";
+}
+
+function variantIconName(name, index) {
+  const normalized = String(name || "").toLowerCase();
+  if (normalized.includes("standart") || normalized.includes("oddiy")) {
+    return "star";
+  }
+  return index === 1 ? "star" : "wrap";
+}
+
+function addonDisplayName(name) {
+  const normalized = String(name || "").toLowerCase();
+  if (normalized.includes("pishloq") || normalized.includes("sir")) {
+    return "Sir";
+  }
+  if (normalized.includes("go'sht") || normalized.includes("go‘sht") || normalized.includes("gosht")) {
+    return "Go'sht";
+  }
+  if (normalized.includes("ketchup")) {
+    return "Ketchup";
+  }
+  if (normalized.includes("sous")) {
+    return "Sous";
+  }
+  if (normalized.includes("fri")) {
+    return "Fri";
+  }
+  return name || "Qo'shimcha";
+}
+
+function addonIconName(name) {
+  const normalized = String(name || "").toLowerCase();
+  if (normalized.includes("pishloq") || normalized.includes("sir")) {
+    return "cheese";
+  }
+  if (normalized.includes("go'sht") || normalized.includes("go‘sht") || normalized.includes("gosht")) {
+    return "meat";
+  }
+  if (normalized.includes("fri")) {
+    return "fries";
+  }
+  if (normalized.includes("sous") || normalized.includes("ketchup")) {
+    return "bottle";
+  }
+  return "cloche";
+}
+
+function addonPriority(name) {
+  const normalized = String(name || "").toLowerCase();
+  if (normalized.includes("pishloq") || normalized.includes("sir")) {
+    return 1;
+  }
+  if (normalized.includes("go'sht") || normalized.includes("go‘sht") || normalized.includes("gosht")) {
+    return 2;
+  }
+  if (normalized.includes("ketchup")) {
+    return 3;
+  }
+  if (normalized.includes("sous")) {
+    return 4;
+  }
+  if (normalized.includes("fri")) {
+    return 5;
+  }
+  return 20;
+}
+
+function menuAddons(item) {
+  return (item.addon_groups || [])
+    .flatMap((group) => group.items || [])
+    .map((groupItem) => groupItem.addon)
+    .filter(Boolean)
+    .sort((left, right) => addonPriority(left.name) - addonPriority(right.name));
+}
+
+function menuVariantOptions(item) {
+  return item.variants?.length
+    ? item.variants
+    : [
+        {
+          id: `base-${item.id}`,
+          name: "Oddiy",
+          price: item.base_price,
+          weight_grams: item.weight_grams,
+        },
+      ];
 }
 
 function fallbackMenuImage(item) {
@@ -129,20 +395,95 @@ function renderMenuGrid() {
 }
 
 function menuCardTemplate(item) {
-  const imageUrl = item.image_url || fallbackMenuImage(item);
+  const imageUrl = menuImageForItem(item);
+  const categoryName = item.category?.name || menuCategoryName(item.category_id);
+  const variants = menuVariantOptions(item).slice(0, 3);
+  const addons = menuAddons(item).slice(0, 3);
+  const displayPrice = selectedVariant(item)?.price ?? item.base_price;
+  const description = item.description || "Tavsif hozircha yo'q.";
 
   return `
     <article class="menu-card">
-      <img class="menu-card-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.name)}" loading="lazy" />
+      <div class="menu-card-media">
+        <img class="menu-card-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(item.name)}" loading="lazy" />
+        <span class="menu-media-pill menu-media-category">
+          ${iconSvg(menuCategoryIcon(item))}
+          <span>${escapeHtml(categoryName)}</span>
+        </span>
+        <span class="menu-media-pill menu-media-status">
+          <span class="menu-status-dot" aria-hidden="true"></span>
+          <span>${item.is_available ? "Sotuvda bor" : "Sotuvda yo'q"}</span>
+        </span>
+      </div>
       <div class="menu-card-body">
-        <h2>${escapeHtml(item.name)}</h2>
-        <p>${escapeHtml(item.description || "Tavsif hozircha yo'q.")}</p>
-        <strong class="menu-card-price">${formatMoney(item.base_price)}</strong>
+        <div class="menu-card-heading">
+          <h2>${escapeHtml(item.name)}</h2>
+          <strong class="menu-card-price">${menuPriceTemplate(displayPrice)}</strong>
+        </div>
+        <p class="menu-card-subline">
+          ${iconSvg("leaf")}
+          <span>${escapeHtml(description)}</span>
+        </p>
+        <div class="menu-info-stack">
+          <section class="menu-info-row menu-info-category" aria-label="Category">
+            <span class="menu-info-icon">${iconSvg("tag")}</span>
+            <span class="menu-info-copy">
+              <span>Category</span>
+              <strong>${escapeHtml(categoryName)}</strong>
+            </span>
+          </section>
+          <section class="menu-info-row menu-info-variants" aria-label="Variantlar">
+            <span class="menu-info-icon">${iconSvg("layers")}</span>
+            <span class="menu-info-copy">
+              <span>Variantlar</span>
+              <span class="menu-option-grid">
+                ${variants
+                  .map(
+                    (variant, index) => `
+                      <span class="menu-option-pill">
+                        ${iconSvg(variantIconName(variant.name, index))}
+                        <span>${escapeHtml(displayVariantName(variant.name))}</span>
+                      </span>
+                    `,
+                  )
+                  .join("")}
+              </span>
+            </span>
+          </section>
+          <section class="menu-info-row menu-info-addons" aria-label="Qo'shimchalar">
+            <span class="menu-info-icon">${iconSvg("cloche")}</span>
+            <span class="menu-info-copy">
+              <span>Qo'shimchalar</span>
+              <span class="menu-option-grid">
+                ${
+                  addons.length
+                    ? addons
+                        .map(
+                          (addon) => `
+                            <span class="menu-option-pill menu-addon-pill">
+                              ${iconSvg(addonIconName(addon.name))}
+                              <span>${escapeHtml(addonDisplayName(addon.name))}</span>
+                            </span>
+                          `,
+                        )
+                        .join("")
+                    : `
+                      <span class="menu-option-pill menu-addon-pill is-muted">
+                        ${iconSvg("cloche")}
+                        <span>Yo'q</span>
+                      </span>
+                    `
+                }
+              </span>
+            </span>
+          </section>
+        </div>
         <button class="menu-view-button" data-menu-view="${item.id}" type="button">
-          <span>Ko'rish</span>
-          <svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="m9 18 6-6-6-6" />
-          </svg>
+          <span class="menu-view-label">
+            ${iconSvg("fileText")}
+            <span>Batafsil</span>
+          </span>
+          <span class="menu-view-arrow">${iconSvg("arrowRight")}</span>
         </button>
       </div>
     </article>
@@ -170,12 +511,12 @@ function renderModalDynamicInfo(item, variantId = null) {
     weight ? `${weight} g` : "",
   ].filter(Boolean);
 
-  menuModalPrice.textContent = formatMoney(price);
+  menuModalPrice.innerHTML = menuPriceTemplate(price);
   menuModalMeta.innerHTML = meta.map((value) => `<span>${escapeHtml(value)}</span>`).join("");
 }
 
 function openMenuModal(item) {
-  const imageUrl = item.image_url || fallbackMenuImage(item);
+  const imageUrl = menuImageForItem(item);
   menuModalImage.src = imageUrl;
   menuModalImage.alt = item.name;
   menuModalTitle.textContent = item.name;
@@ -493,9 +834,13 @@ function requestTelegramContact() {
   }
 
   window.localStorage.setItem(storageKey, "asked");
-  telegram.requestContact((isShared) => {
-    window.localStorage.setItem(storageKey, isShared ? "shared" : "denied");
-  });
+  try {
+    telegram.requestContact((isShared) => {
+      window.localStorage.setItem(storageKey, isShared ? "shared" : "denied");
+    });
+  } catch {
+    window.localStorage.setItem(storageKey, "denied");
+  }
 }
 
 function formatUser(user) {
@@ -989,9 +1334,11 @@ async function loadCrudView(type, editingItem = null) {
     return;
   }
 
+  const requestId = ++activeCrudRequestId;
   const config = crudConfigs[type];
   document.querySelector(".admin-heading h2").textContent = config.heading;
   adminStatusText.textContent = `${config.title} yuklanmoqda...`;
+  ordersList.innerHTML = `<p class="order-meta">Yuklanmoqda...</p>`;
 
   try {
     for (const dependency of config.dependencies || []) {
@@ -999,6 +1346,10 @@ async function loadCrudView(type, editingItem = null) {
     }
 
     const items = await adminApi(config.endpoint);
+    if (requestId !== activeCrudRequestId) {
+      return;
+    }
+
     adminCache[type] = items;
     ordersList.innerHTML = `
       ${renderCrudForm(type, editingItem)}
