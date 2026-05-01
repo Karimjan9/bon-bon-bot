@@ -9,6 +9,7 @@ async def upsert_guest_contact(
     session: AsyncSession,
     telegram_user: User,
     contact: Contact,
+    selected_language_code: str | None = None,
 ) -> Guest:
     result = await session.execute(
         select(Guest).where(Guest.telegram_id == telegram_user.id)
@@ -23,7 +24,7 @@ async def upsert_guest_contact(
     guest.username = telegram_user.username
     guest.first_name = contact.first_name or telegram_user.first_name
     guest.last_name = contact.last_name or telegram_user.last_name
-    guest.language_code = telegram_user.language_code
+    guest.language_code = selected_language_code or telegram_user.language_code
 
     await session.commit()
     return guest

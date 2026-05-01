@@ -4,15 +4,48 @@ from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import Command, CommandStart
 from aiogram.types import Message, ReplyKeyboardRemove
 
-from app.bot.keyboards import language_keyboard, menu_inline_keyboard
+from app.bot.keyboards import contact_request_keyboard, language_keyboard, menu_inline_keyboard
 from app.config import get_settings
 from app.db.migrations import ensure_schema_ready
 from app.db.session import async_session_factory
 from app.services.guests import upsert_guest_contact
 
 router = Router()
+USER_LANGUAGE_CODES: dict[int, str] = {}
 
-LANGUAGE_BUTTONS = {"🇺🇿 O'zbek", "🇷🇺 Русский", "🇬🇧 English"}
+LANGUAGE_BY_BUTTON = {
+    "🇺🇿 O'zbek": "uz",
+    "🇷🇺 Русский": "ru",
+    "🇬🇧 English": "en",
+}
+LANGUAGE_BUTTONS = set(LANGUAGE_BY_BUTTON)
+
+TEXTS = {
+    "uz": {
+        "language_selected": "Til muvaffaqiyatli tanlandi!",
+        "ask_contact": "Menyuni ko'rish uchun kontaktingizni ulashing.",
+        "contact_button": "Kontaktni ulashish",
+        "contact_saved": "Kontakt saqlandi!",
+        "open_menu_prompt": "Menyuni ko'rish uchun pastdagi tugmani bosing.",
+        "menu_button": "Menyuni ko'rish",
+    },
+    "ru": {
+        "language_selected": "Язык успешно выбран!",
+        "ask_contact": "Чтобы посмотреть меню, поделитесь контактом.",
+        "contact_button": "Поделиться контактом",
+        "contact_saved": "Контакт сохранён!",
+        "open_menu_prompt": "Чтобы посмотреть меню, нажмите кнопку ниже.",
+        "menu_button": "Посмотреть меню",
+    },
+    "en": {
+        "language_selected": "Language selected successfully!",
+        "ask_contact": "Share your contact to view the menu.",
+        "contact_button": "Share contact",
+        "contact_saved": "Contact saved!",
+        "open_menu_prompt": "Tap the button below to view the menu.",
+        "menu_button": "View menu",
+    },
+}
 
 BOT_DESCRIPTION = (
     "ВЫ МОЖЕТЕ ЗАКАЗАТЬ:\n"
@@ -79,24 +112,42 @@ async def contact_handler(message: Message) -> None:
     if message.from_user is None or message.contact is None:
         return
 
+    settings = get_settings()
+    language_code = USER_LANGUAGE_CODES.get(message.from_user.id, "uz")
+    texts = TEXTS[language_code]
     async with async_session_factory() as session:
         await upsert_guest_contact(
             session=session,
             telegram_user=message.from_user,
             contact=message.contact,
+            selected_language_code=language_code,
         )
+    await message.answer(
+        texts["contact_saved"],
+        reply_markup=ReplyKeyboardRemove(),
+    )
+    await message.answer(
+        texts["open_menu_prompt"],
+        reply_markup=menu_inline_keyboard(
+            settings.web_app_url,
+            texts["menu_button"],
+        ),
+    )
 
 
 @router.message(F.text.in_(LANGUAGE_BUTTONS))
 async def language_handler(message: Message) -> None:
-    settings = get_settings()
+    language_code = LANGUAGE_BY_BUTTON.get(message.text, "uz")
+    if message.from_user is not None:
+        USER_LANGUAGE_CODES[message.from_user.id] = language_code
+    texts = TEXTS[language_code]
     await message.answer(
-        "Til muvaffaqiyatli tanlandi!",
+        texts["language_selected"],
         reply_markup=ReplyKeyboardRemove(),
     )
     await message.answer(
-        "Menyuni ko'rish uchun pastdagi tugmani bosing.",
-        reply_markup=menu_inline_keyboard(settings.web_app_url),
+        texts["ask_contact"],
+        reply_markup=contact_request_keyboard(texts["contact_button"]),
     )
 
 

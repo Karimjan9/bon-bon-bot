@@ -24,6 +24,21 @@ def language_keyboard() -> ReplyKeyboardMarkup:
     )
 
 
+def contact_request_keyboard(button_text: str = "Kontaktni ulashish") -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [
+                KeyboardButton(
+                    text=button_text,
+                    request_contact=True,
+                )
+            ]
+        ],
+        resize_keyboard=True,
+        one_time_keyboard=True,
+    )
+
+
 def main_keyboard(web_app_url: str) -> ReplyKeyboardMarkup:
     if not is_https_url(web_app_url):
         return ReplyKeyboardMarkup(
@@ -48,14 +63,17 @@ def main_keyboard(web_app_url: str) -> ReplyKeyboardMarkup:
     )
 
 
-def menu_inline_keyboard(web_app_url: str) -> InlineKeyboardMarkup:
+def menu_inline_keyboard(
+    web_app_url: str,
+    button_text: str = "Menyuni ko'rish",
+) -> InlineKeyboardMarkup:
     button = InlineKeyboardButton(
-        text="Menyuni ko'rish",
+        text=button_text,
         web_app=WebAppInfo(url=web_app_url),
     )
     if not is_https_url(web_app_url):
         button = InlineKeyboardButton(
-            text="Menyuni ko'rish",
+            text=button_text,
             url=web_app_url,
         )
 

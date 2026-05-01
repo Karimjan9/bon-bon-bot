@@ -105,11 +105,12 @@ body {
 .brand-logo {
   display: block;
   flex: 0 0 auto;
-  width: 126px;
-  height: 72px;
-  border-radius: 12px;
-  background: #f47a00;
+  width: 58px;
+  height: 58px;
+  border-radius: 16px;
+  background: #fff;
   object-fit: contain;
+  padding: 4px;
   box-shadow: 0 10px 24px rgba(87, 48, 28, 0.1);
 }
 
@@ -296,11 +297,12 @@ h1 {
 
 .login-brand img {
   display: block;
-  width: min(100%, 220px);
-  height: 138px;
-  border-radius: 16px;
-  background: #f47a00;
+  width: min(100%, 168px);
+  aspect-ratio: 1 / 1;
+  border-radius: 24px;
+  background: #fff;
   object-fit: contain;
+  padding: 10px;
   box-shadow: 0 16px 34px rgba(87, 48, 28, 0.14);
 }
 
@@ -1027,11 +1029,12 @@ h1 {
 .admin-brand-mark {
   display: block;
   flex: 0 0 auto;
-  width: 82px;
-  height: 62px;
+  width: 54px;
+  height: 54px;
   overflow: hidden;
-  border-radius: 12px;
-  background: #f47a00;
+  border-radius: 14px;
+  background: #fff;
+  padding: 4px;
   box-shadow: 0 8px 18px rgba(2, 34, 21, 0.16);
 }
 

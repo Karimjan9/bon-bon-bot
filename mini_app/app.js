@@ -57,6 +57,7 @@ let activeMenuCategory = "all";
 let menuItems = [];
 let menuCategoryItems = [];
 const adminCache = {
+  guests: [],
   categories: [],
   items: [],
   variants: [],
@@ -677,6 +678,11 @@ function showAdminPlaceholder(view) {
   activeAdminView = view;
   setActiveAdminView(view);
 
+  if (view === "guests") {
+    loadGuests();
+    return;
+  }
+
   if (view === "categories") {
     loadCrudView("categories");
     return;
@@ -885,6 +891,20 @@ function formatMoney(amount, currency = "UZS") {
   return `${Number(amount || 0).toLocaleString("uz-UZ")} ${currency}`;
 }
 
+function formatDateTime(value) {
+  if (!value) {
+    return "-";
+  }
+
+  return new Date(value).toLocaleString("uz-UZ", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -923,10 +943,6 @@ function canvasToBlob(canvas, type, quality) {
 }
 
 async function imageFileToOptimizedBlob(file) {
-  if (file.type && !file.type.startsWith("image/")) {
-    throw new Error("Faqat rasm fayl tanlang.");
-  }
-
   if (file.size > 8 * 1024 * 1024) {
     throw new Error("Rasm 8 MB dan katta bo'lmasin.");
   }
@@ -1092,8 +1108,8 @@ function renderField(field, item) {
     return `
       <label class="image-upload-field">${field.label}
         <input ${commonAttrs} type="url" placeholder="https://... yoki rasm yuklang" value="${escapeHtml(value)}" />
-        <input class="image-upload-input" type="file" accept="image/*" data-image-upload-for="${field.name}" />
-        <span class="image-upload-hint">Rasm tanlang. Tizim uni kichraytirib WebP yoki JPEG fayl sifatida saqlaydi.</span>
+        <input class="image-upload-input" type="file" data-image-upload-for="${field.name}" />
+        <span class="image-upload-hint">Rasm tanlang. Tizim format/kengaytmadan qat'i nazar uni o'qib, kichraytirib WebP yoki JPEG fayl sifatida saqlaydi.</span>
         ${
           value
             ? `<img class="image-upload-preview" src="${escapeHtml(value)}" alt="" loading="lazy" decoding="async" />`
@@ -1462,6 +1478,24 @@ function orderTemplate(order) {
   `;
 }
 
+function guestTemplate(guest) {
+  const name = [guest.first_name, guest.last_name].filter(Boolean).join(" ") || "Ism yo'q";
+  const username = guest.username ? `@${guest.username}` : "username yo'q";
+  const language = guest.language_code ? guest.language_code.toUpperCase() : "-";
+
+  return `
+    <article class="order-item">
+      <div class="order-topline">
+        <p class="order-title">${escapeHtml(name)}</p>
+        <span class="badge">${escapeHtml(language)}</span>
+      </div>
+      <p class="order-meta">Telefon: <strong>${escapeHtml(guest.phone_number)}</strong></p>
+      <p class="order-meta">${escapeHtml(username)} | Telegram ID: ${guest.telegram_id}</p>
+      <p class="order-meta">Contact ID: ${guest.contact_user_id || "-"} | Saqlandi: ${formatDateTime(guest.created_at)}</p>
+    </article>
+  `;
+}
+
 function categoryTemplate(category) {
   const status = category.is_active ? "active" : "hidden";
 
@@ -1573,6 +1607,32 @@ async function loadOrders() {
     : `<p class="order-meta">Hali buyurtma yo'q.</p>`;
   adminStatusText.textContent = `Jami ko'rsatildi: ${orders.length}`;
   await loadStats();
+}
+
+async function loadGuests() {
+  if (!isAdmin) {
+    return;
+  }
+
+  document.querySelector(".admin-heading h2").textContent = "Mehmonlar";
+  adminStatusText.textContent = "Mehmonlar yuklanmoqda...";
+  ordersList.innerHTML = `<p class="order-meta">Yuklanmoqda...</p>`;
+
+  const response = await fetch("/api/admin/guests", {
+    headers: authHeaders(),
+  });
+
+  if (!response.ok) {
+    adminStatusText.textContent = "Mehmonlarni yuklab bo'lmadi.";
+    return;
+  }
+
+  const guests = await response.json();
+  adminCache.guests = guests;
+  ordersList.innerHTML = guests.length
+    ? guests.map(guestTemplate).join("")
+    : `<p class="order-meta">Hali mehmon yo'q.</p>`;
+  adminStatusText.textContent = `Mehmonlar: ${guests.length}`;
 }
 
 async function loadAdminCategories() {
@@ -1813,4 +1873,3 @@ ordersList.addEventListener("submit", async (event) => {
 
 checkAdmin();
 loadCatalog();
-requestTelegramContact();

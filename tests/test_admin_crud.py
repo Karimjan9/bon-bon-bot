@@ -6,6 +6,7 @@ from app.config import get_settings
 from app.db.migrations import ensure_schema_ready
 from app.db.models import (
     Category,
+    Guest,
     MenuItem,
     MenuItemAddon,
     MenuItemAddonGroup,
@@ -22,6 +23,7 @@ pytestmark = pytest.mark.asyncio
 async def cleanup_smoke_data() -> None:
     async with async_session_factory() as session:
         await session.execute(delete(Order).where(Order.note.like("%Codex admin CRUD test%")))
+        await session.execute(delete(Guest).where(Guest.username.like("codex_guest%")))
         await session.execute(
             delete(MenuItemAddonGroupItem).where(
                 MenuItemAddonGroupItem.sort_order.in_([9701, 9702, 9703])
@@ -431,3 +433,26 @@ async def test_admin_validation_and_order_status(admin_client: AsyncClient):
     assert {"total_orders", "new_orders", "processing_orders", "done_orders", "revenue"} <= set(
         stats
     )
+
+
+async def test_admin_guests_list(admin_client: AsyncClient):
+    async with async_session_factory() as session:
+        session.add(
+            Guest(
+                telegram_id=998877661,
+                contact_user_id=998877661,
+                phone_number="+998901112233",
+                username="codex_guest_test",
+                first_name="Codex",
+                last_name="Guest",
+                language_code="uz",
+            )
+        )
+        await session.commit()
+
+    guests = await expect_json(await admin_client.get("/api/admin/guests"), 200, "list guests")
+    guest = next((item for item in guests if item["telegram_id"] == 998877661), None)
+
+    assert guest is not None
+    assert guest["phone_number"] == "+998901112233"
+    assert guest["username"] == "codex_guest_test"

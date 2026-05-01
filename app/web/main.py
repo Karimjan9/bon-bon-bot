@@ -6,6 +6,7 @@ import time
 import uuid
 from asyncio import to_thread
 from contextlib import asynccontextmanager
+from io import BytesIO
 from pathlib import Path
 from typing import Annotated
 
@@ -13,14 +14,24 @@ import uvicorn
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+
+try:
+    from pillow_heif import register_heif_opener
+except ImportError:  # pragma: no cover - optional decoder until dependencies are installed.
+    register_heif_opener = None
+
+if register_heif_opener is not None:
+    register_heif_opener()
 
 from app.config import get_settings
 from app.db.migrations import ensure_schema_ready
 from app.db.models import (
     Category,
+    Guest,
     MenuItem,
     MenuItemAddon,
     MenuItemAddonGroup,
@@ -39,6 +50,7 @@ from app.web.schemas import (
     AdminTokenRead,
     CategoryRead,
     CategoryWrite,
+    GuestRead,
     MenuItemAddonGroupItemRead,
     MenuItemAddonGroupItemWrite,
     MenuItemAddonGroupRead,
@@ -63,13 +75,18 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 MINI_APP_DIR = BASE_DIR / "mini_app"
 IMAGE_UPLOAD_DIR = MINI_APP_DIR / "uploads" / "images"
 ADMIN_TOKEN_TTL_SECONDS = 6 * 60 * 60
-MAX_IMAGE_UPLOAD_BYTES = 750_000
-IMAGE_EXTENSIONS = {
-    "image/jpeg": ".jpg",
-    "image/jpg": ".jpg",
-    "image/png": ".png",
-    "image/webp": ".webp",
-}
+MAX_ORIGINAL_IMAGE_UPLOAD_BYTES = 8 * 1024 * 1024
+MAX_OPTIMIZED_IMAGE_UPLOAD_BYTES = 750_000
+IMAGE_OUTPUT_OPTIONS = (
+    ("image/webp", ".webp", {"format": "WEBP", "quality": 82, "method": 6}),
+    (
+        "image/jpeg",
+        ".jpg",
+        {"format": "JPEG", "quality": 86, "optimize": True, "progressive": True},
+    ),
+)
+IMAGE_MAX_SIZES = (1200, 1000, 860, 720, 600)
+IMAGE_QUALITY_STEPS = (1.0, 0.88, 0.76, 0.64)
 
 
 @asynccontextmanager
@@ -90,6 +107,11 @@ async def index() -> FileResponse:
 
 @app.get("/admin")
 async def admin() -> FileResponse:
+    return FileResponse(MINI_APP_DIR / "index.html")
+
+
+@app.get("/admin/guests")
+async def admin_guests_page() -> FileResponse:
     return FileResponse(MINI_APP_DIR / "index.html")
 
 
@@ -264,6 +286,21 @@ def serialize_order(order: Order) -> OrderRead:
     )
 
 
+def serialize_guest(guest: Guest) -> GuestRead:
+    return GuestRead(
+        id=guest.id,
+        telegram_id=guest.telegram_id,
+        contact_user_id=guest.contact_user_id,
+        phone_number=guest.phone_number,
+        username=guest.username,
+        first_name=guest.first_name,
+        last_name=guest.last_name,
+        language_code=guest.language_code,
+        created_at=guest.created_at,
+        updated_at=guest.updated_at,
+    )
+
+
 def get_verified_telegram_user(init_data: str | None) -> dict | None:
     if not init_data:
         return None
@@ -427,45 +464,81 @@ def apply_payload(model: object, payload: dict) -> None:
         setattr(model, field, value)
 
 
-def normalize_content_type(content_type: str | None) -> str:
-    return (content_type or "").split(";", 1)[0].strip().lower()
+def normalize_image(image: Image.Image) -> Image.Image:
+    image = ImageOps.exif_transpose(image)
+    image.load()
+    if image.mode == "RGB":
+        return image
+
+    if image.mode in {"RGBA", "LA"} or (
+        image.mode == "P" and "transparency" in image.info
+    ):
+        rgba_image = image.convert("RGBA")
+        background = Image.new("RGBA", rgba_image.size, (255, 255, 255, 255))
+        background.alpha_composite(rgba_image)
+        return background.convert("RGB")
+
+    return image.convert("RGB")
 
 
-def validate_image_upload(data: bytes, content_type: str) -> str:
-    extension = IMAGE_EXTENSIONS.get(content_type)
-    if extension is None:
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail="Rasm optimizatsiyadan keyin JPEG, PNG yoki WebP bo'lishi kerak.",
-        )
+def resize_image(image: Image.Image, max_size: int) -> Image.Image:
+    resized = image.copy()
+    resized.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+    return resized
 
+
+def encode_image(image: Image.Image, options: dict, quality_multiplier: float) -> bytes:
+    output = BytesIO()
+    save_options = options.copy()
+    if "quality" in save_options:
+        save_options["quality"] = max(50, round(save_options["quality"] * quality_multiplier))
+    image.save(output, **save_options)
+    return output.getvalue()
+
+
+def optimize_image_upload(data: bytes) -> tuple[bytes, str, str]:
     if not data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Rasm fayli bo'sh.",
         )
 
-    if len(data) > MAX_IMAGE_UPLOAD_BYTES:
+    if len(data) > MAX_ORIGINAL_IMAGE_UPLOAD_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="Rasm hajmi 750 KB dan oshmasin.",
+            detail="Original rasm hajmi 8 MB dan oshmasin.",
         )
 
-    is_jpeg = content_type in {"image/jpeg", "image/jpg"} and data.startswith(b"\xff\xd8\xff")
-    is_png = content_type == "image/png" and data.startswith(b"\x89PNG\r\n\x1a\n")
-    is_webp = (
-        content_type == "image/webp"
-        and len(data) >= 12
-        and data[:4] == b"RIFF"
-        and data[8:12] == b"WEBP"
-    )
-    if not (is_jpeg or is_png or is_webp):
+    try:
+        with Image.open(BytesIO(data)) as opened_image:
+            image = normalize_image(opened_image)
+    except (OSError, UnidentifiedImageError) as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Rasm formati noto'g'ri yoki buzilgan.",
-        )
+            detail="Rasm formati qo'llab-quvvatlanmaydi yoki fayl buzilgan.",
+        ) from exc
 
-    return extension
+    fallback: tuple[bytes, str, str] | None = None
+    for max_size in IMAGE_MAX_SIZES:
+        resized = resize_image(image, max_size)
+        for content_type, extension, options in IMAGE_OUTPUT_OPTIONS:
+            for quality_multiplier in IMAGE_QUALITY_STEPS:
+                try:
+                    optimized = encode_image(resized, options, quality_multiplier)
+                except OSError:
+                    continue
+
+                fallback = (optimized, content_type, extension)
+                if len(optimized) <= MAX_OPTIMIZED_IMAGE_UPLOAD_BYTES:
+                    return fallback
+
+    if fallback is not None:
+        return fallback
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Rasmni optimizatsiya qilib bo'lmadi.",
+    )
 
 
 async def fetch_menu_item_read(session: AsyncSession, menu_item_id: int) -> MenuItem:
@@ -640,6 +713,18 @@ async def admin_orders(
     return [serialize_order(order) for order in orders]
 
 
+@app.get("/api/admin/guests", response_model=list[GuestRead])
+async def admin_guests(
+    session: Annotated[AsyncSession, Depends(get_session)],
+    _: Annotated[dict | None, Depends(require_admin)],
+    limit: Annotated[int, Query(ge=1, le=500)] = 200,
+) -> list[GuestRead]:
+    result = await session.execute(
+        select(Guest).order_by(Guest.updated_at.desc(), Guest.id.desc()).limit(limit)
+    )
+    return [serialize_guest(guest) for guest in result.scalars()]
+
+
 @app.get("/api/admin/stats", response_model=AdminStatsRead)
 async def admin_stats(
     session: Annotated[AsyncSession, Depends(get_session)],
@@ -680,27 +765,25 @@ async def admin_upload_image(
     request: Request,
     _: Annotated[dict | None, Depends(require_admin)],
     content_length: Annotated[int | None, Header()] = None,
-    content_type: Annotated[str | None, Header()] = None,
 ) -> dict[str, int | str]:
-    if content_length is not None and content_length > MAX_IMAGE_UPLOAD_BYTES:
+    if content_length is not None and content_length > MAX_ORIGINAL_IMAGE_UPLOAD_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="Rasm hajmi 750 KB dan oshmasin.",
+            detail="Original rasm hajmi 8 MB dan oshmasin.",
         )
 
-    normalized_type = normalize_content_type(content_type)
     data = await request.body()
-    extension = validate_image_upload(data, normalized_type)
+    optimized_data, content_type, extension = optimize_image_upload(data)
     IMAGE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
     file_name = f"{int(time.time())}-{uuid.uuid4().hex}{extension}"
     target = IMAGE_UPLOAD_DIR / file_name
-    await to_thread(target.write_bytes, data)
+    await to_thread(target.write_bytes, optimized_data)
 
     return {
         "url": f"/static/uploads/images/{file_name}",
-        "size": len(data),
-        "content_type": normalized_type,
+        "size": len(optimized_data),
+        "content_type": content_type,
     }
 
 

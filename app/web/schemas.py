@@ -27,6 +27,19 @@ class UserRead(BaseModel):
     last_name: str | None = None
 
 
+class GuestRead(BaseModel):
+    id: int
+    telegram_id: int
+    contact_user_id: int | None = None
+    phone_number: str
+    username: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    language_code: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
 class ProductCategoryRead(BaseModel):
     id: int
     title: str
