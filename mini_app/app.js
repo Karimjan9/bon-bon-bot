@@ -26,6 +26,7 @@ const menuModalPrice = document.querySelector("#menu-modal-price");
 const menuModalMeta = document.querySelector("#menu-modal-meta");
 const menuModalVariants = document.querySelector("#menu-modal-variants");
 const menuModalAddons = document.querySelector("#menu-modal-addons");
+const loginPanel = document.querySelector("#login-panel");
 const adminPanel = document.querySelector("#admin-panel");
 const adminLogin = document.querySelector("#admin-login");
 const adminLoginInput = document.querySelector("#admin-login-name");
@@ -35,6 +36,7 @@ const adminMenuToggle = document.querySelector("#admin-menu-toggle");
 const adminMenuList = document.querySelector("#admin-menu-list");
 const adminViewButtons = document.querySelectorAll("[data-admin-view]");
 const refreshOrdersButton = document.querySelector("#refresh-orders");
+const loginStatusText = document.querySelector("#login-status");
 const adminStatusText = document.querySelector("#admin-status");
 const ordersList = document.querySelector("#orders-list");
 const statTotal = document.querySelector("#stat-total");
@@ -616,12 +618,13 @@ searchBar.addEventListener("submit", (event) => {
 function openLoginSection() {
   setLoginLayout(true);
   setAdminLayout(false);
-  adminPanel.classList.remove("is-hidden");
+  adminPanel.classList.add("is-hidden");
+  loginPanel.classList.remove("is-hidden");
   adminLogin.classList.remove("is-hidden");
   adminLoginInput.value = "";
   adminKeyInput.value = "";
-  adminStatusText.textContent = "Admin login va parolni kiriting.";
-  adminLogin.scrollIntoView({ behavior: "smooth", block: "center" });
+  loginStatusText.textContent = "Admin login va parolni kiriting.";
+  loginPanel.scrollIntoView({ behavior: "smooth", block: "center" });
   adminLoginInput.focus();
 }
 
@@ -1641,10 +1644,6 @@ async function checkAdmin() {
     clearAdminToken();
   }
 
-  if (isAdminPage) {
-    adminPanel.classList.remove("is-hidden");
-  }
-
   const response = await fetch("/api/me", {
     headers: authHeaders(),
   });
@@ -1654,6 +1653,7 @@ async function checkAdmin() {
   isAdmin = Boolean(me.is_admin);
 
   if (isAdmin && isLoginPage) {
+    loginPanel.classList.add("is-hidden");
     adminLogin.classList.add("is-hidden");
     setLoginLayout(false);
     window.location.href = "/admin";
@@ -1672,6 +1672,7 @@ async function checkAdmin() {
     }
 
     adminPanel.classList.remove("is-hidden");
+    loginPanel.classList.add("is-hidden");
     adminLogin.classList.add("is-hidden");
     setLoginLayout(false);
     setAdminLayout(true);
@@ -1688,8 +1689,10 @@ async function checkAdmin() {
     }
 
     setAdminLayout(false);
+    adminPanel.classList.add("is-hidden");
+    loginPanel.classList.add("is-hidden");
     adminLogin.classList.remove("is-hidden");
-    adminStatusText.textContent = "Sessiya tugagan. Admin login va parolni qayta kiriting.";
+    loginStatusText.textContent = "Sessiya tugagan. Admin login va parolni qayta kiriting.";
   }
 }
 
@@ -1697,6 +1700,7 @@ saveAdminKeyButton.addEventListener("click", async () => {
   adminLoginName = adminLoginInput.value.trim() || "admin";
   const adminPassword = adminKeyInput.value.trim();
   clearAdminToken();
+  loginStatusText.textContent = "Login tekshirilmoqda...";
 
   const response = await fetch("/api/admin/login", {
     method: "POST",
@@ -1708,11 +1712,12 @@ saveAdminKeyButton.addEventListener("click", async () => {
   });
 
   if (!response.ok) {
-    adminStatusText.textContent = "Login yoki parol xato.";
+    loginStatusText.textContent = "Login yoki parol xato.";
     return;
   }
 
   storeAdminToken(await response.json());
+  loginPanel.classList.add("is-hidden");
   adminLogin.classList.add("is-hidden");
   adminKeyInput.value = "";
   window.location.href = "/admin";

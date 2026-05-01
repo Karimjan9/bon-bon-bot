@@ -91,7 +91,7 @@ async def contact_handler(message: Message) -> None:
 async def language_handler(message: Message) -> None:
     settings = get_settings()
     await message.answer(
-        "Til muvaffaqiyatli tanlandi!!",
+        "Til muvaffaqiyatli tanlandi!",
         reply_markup=ReplyKeyboardRemove(),
     )
     await message.answer(
