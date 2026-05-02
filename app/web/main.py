@@ -115,6 +115,11 @@ async def admin_guests_page() -> FileResponse:
     return FileResponse(MINI_APP_DIR / "index.html")
 
 
+@app.get("/admin/{path:path}")
+async def admin_fallback_page(path: str) -> FileResponse:
+    return FileResponse(MINI_APP_DIR / "index.html")
+
+
 @app.get("/login")
 async def login() -> FileResponse:
     return FileResponse(MINI_APP_DIR / "index.html")

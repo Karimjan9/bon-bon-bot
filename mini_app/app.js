@@ -47,12 +47,16 @@ const statRevenue = document.querySelector("#stat-revenue");
 const isLoginPage = window.location.pathname === "/login";
 const isAdminPage = window.location.pathname === "/admin" || window.location.pathname === "/admin/guests";
 const initialAdminView = window.location.pathname === "/admin/guests" ? "guests" : "categories";
+const ADMIN_TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
 let adminLoginName = "";
 let adminAccessToken = window.localStorage.getItem("bonbon_admin_access_token") || "";
 let adminTokenExpiresAt = Number(window.localStorage.getItem("bonbon_admin_token_expires_at") || 0);
+let adminTokenExpiryTimerId = 0;
 let isAdmin = false;
-let activeLanguage = "UZ";
+let activeLanguage = window.localStorage.getItem("bonbon_language") || "UZ";
 let activeAdminView = initialAdminView;
+let activeCrudType = initialAdminView === "guests" ? null : initialAdminView;
+let activeCrudEditingItem = null;
 let activeCrudRequestId = 0;
 let activeMenuCategory = "all";
 let menuItems = [];
@@ -66,6 +70,188 @@ const adminCache = {
   addonGroups: [],
   addonLinks: [],
 };
+
+const i18n = {
+  UZ: {
+    searchPlaceholder: "Qidirish...",
+    all: "Barchasi",
+    noMenu: "Menu topilmadi.",
+    descriptionEmpty: "Tavsif hozircha yo'q.",
+    available: "Sotuvda bor",
+    unavailable: "Sotuvda yo'q",
+    category: "Category",
+    variants: "Variantlar",
+    addons: "Qo'shimchalar",
+    details: "Batafsil",
+    login: "Login",
+    admin: "Admin",
+    guests: "Mehmonlar",
+    categories: "Categoriyalar",
+    items: "Itemlar",
+    variantsAdmin: "Variantlar",
+    addonGroups: "Addon Grouplar",
+    addonsAdmin: "Addonlar",
+    addonLinks: "Group Addonlar",
+    loading: "Yuklanmoqda...",
+    guestsLoading: "Mehmonlar yuklanmoqda...",
+    guestsFailed: "Mehmonlarni yuklab bo'lmadi.",
+    noGuests: "Hali mehmon yo'q.",
+    noRecords: "Hali yozuv yo'q.",
+    noSearchResults: "Qidiruv bo'yicha ma'lumot topilmadi.",
+    recordNew: "Yangi yozuv",
+    edit: "Tahrirlash",
+    cancel: "Bekor",
+    save: "Saqlash",
+    add: "Qo'shish",
+    editButton: "Edit",
+    deleteButton: "Delete",
+    adminReady: "Admin panel tayyorlanmoqda.",
+    loginPrompt: "Admin login va parolni kiriting.",
+    guestsCount: "Mehmonlar",
+  },
+  RU: {
+    searchPlaceholder: "Поиск...",
+    all: "Все",
+    noMenu: "Меню не найдено.",
+    descriptionEmpty: "Описание пока отсутствует.",
+    available: "В продаже",
+    unavailable: "Нет в продаже",
+    category: "Категория",
+    variants: "Варианты",
+    addons: "Дополнения",
+    details: "Подробнее",
+    login: "Войти",
+    admin: "Админ",
+    guests: "Гости",
+    categories: "Категории",
+    items: "Позиции",
+    variantsAdmin: "Варианты",
+    addonGroups: "Группы доп.",
+    addonsAdmin: "Дополнения",
+    addonLinks: "Связи доп.",
+    loading: "Загрузка...",
+    guestsLoading: "Гости загружаются...",
+    guestsFailed: "Не удалось загрузить гостей.",
+    noGuests: "Гостей пока нет.",
+    noRecords: "Записей пока нет.",
+    noSearchResults: "По запросу ничего не найдено.",
+    recordNew: "Новая запись",
+    edit: "Редактировать",
+    cancel: "Отмена",
+    save: "Сохранить",
+    add: "Добавить",
+    editButton: "Edit",
+    deleteButton: "Delete",
+    adminReady: "Админ панель готовится.",
+    loginPrompt: "Введите логин и пароль администратора.",
+    guestsCount: "Гости",
+  },
+  EN: {
+    searchPlaceholder: "Search...",
+    all: "All",
+    noMenu: "No menu items found.",
+    descriptionEmpty: "No description yet.",
+    available: "Available",
+    unavailable: "Unavailable",
+    category: "Category",
+    variants: "Variants",
+    addons: "Add-ons",
+    details: "Details",
+    login: "Login",
+    admin: "Admin",
+    guests: "Guests",
+    categories: "Categories",
+    items: "Items",
+    variantsAdmin: "Variants",
+    addonGroups: "Addon Groups",
+    addonsAdmin: "Add-ons",
+    addonLinks: "Group Add-ons",
+    loading: "Loading...",
+    guestsLoading: "Guests loading...",
+    guestsFailed: "Could not load guests.",
+    noGuests: "No guests yet.",
+    noRecords: "No records yet.",
+    noSearchResults: "No results found.",
+    recordNew: "New record",
+    edit: "Edit",
+    cancel: "Cancel",
+    save: "Save",
+    add: "Add",
+    editButton: "Edit",
+    deleteButton: "Delete",
+    adminReady: "Admin panel is loading.",
+    loginPrompt: "Enter admin login and password.",
+    guestsCount: "Guests",
+  },
+};
+
+const adminViewLabels = {
+  guests: "guests",
+  categories: "categories",
+  items: "items",
+  variants: "variantsAdmin",
+  "addon-groups": "addonGroups",
+  addons: "addonsAdmin",
+  "addon-links": "addonLinks",
+};
+
+function t(key) {
+  return i18n[activeLanguage]?.[key] || i18n.UZ[key] || key;
+}
+
+function currentSearchTerm() {
+  return productSearchInput.value.trim().toLowerCase();
+}
+
+function searchableText(value) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(searchableText).join(" ");
+  }
+
+  if (typeof value === "object") {
+    return Object.values(value).map(searchableText).join(" ");
+  }
+
+  return String(value);
+}
+
+function matchesSearch(value, term = currentSearchTerm()) {
+  return !term || searchableText(value).toLowerCase().includes(term);
+}
+
+function setSearchPlaceholder() {
+  productSearchInput.placeholder = t("searchPlaceholder");
+}
+
+function updateStaticLanguage() {
+  document.documentElement.lang = activeLanguage.toLowerCase();
+  languageLabel.textContent = activeLanguage;
+  setSearchPlaceholder();
+  adminViewButtons.forEach((button) => {
+    const labelKey = adminViewLabels[button.dataset.adminView];
+    if (labelKey) {
+      button.textContent = t(labelKey);
+    }
+  });
+}
+
+function applyLanguage() {
+  updateStaticLanguage();
+  renderMenuCategories();
+  renderMenuGrid();
+
+  if (isLoginPage && !isAdmin) {
+    loginStatusText.textContent = t("loginPrompt");
+  }
+
+  if (isAdmin && isAdminPage) {
+    renderCurrentAdminView();
+  }
+}
 
 const menuIcons = {
   arrowRight: `
@@ -366,7 +552,7 @@ function fallbackMenuImage(item) {
 
 function renderMenuCategories() {
   const buttons = [
-    `<button class="menu-category-button ${activeMenuCategory === "all" ? "is-active" : ""}" data-menu-category="all" type="button">Barchasi</button>`,
+    `<button class="menu-category-button ${activeMenuCategory === "all" ? "is-active" : ""}" data-menu-category="all" type="button">${t("all")}</button>`,
     ...menuCategoryItems.map(
       (category) => `
         <button class="menu-category-button ${String(activeMenuCategory) === String(category.id) ? "is-active" : ""}" data-menu-category="${category.id}" type="button">
@@ -393,9 +579,9 @@ function renderMenuGrid() {
 
   menuGrid.innerHTML = filteredItems.length
     ? filteredItems.map(menuCardTemplate).join("")
-    : `<p class="menu-empty">Menu topilmadi.</p>`;
+    : `<p class="menu-empty">${t("noMenu")}</p>`;
   menuTitle.textContent =
-    activeMenuCategory === "all" ? "Barchasi" : menuCategoryName(activeMenuCategory);
+    activeMenuCategory === "all" ? t("all") : menuCategoryName(activeMenuCategory);
 }
 
 function menuCardTemplate(item) {
@@ -404,7 +590,7 @@ function menuCardTemplate(item) {
   const variants = menuVariantOptions(item).slice(0, 3);
   const addons = menuAddons(item).slice(0, 3);
   const displayPrice = selectedVariant(item)?.price ?? item.base_price;
-  const description = item.description || "Tavsif hozircha yo'q.";
+  const description = item.description || t("descriptionEmpty");
 
   return `
     <article class="menu-card">
@@ -416,7 +602,7 @@ function menuCardTemplate(item) {
         </span>
         <span class="menu-media-pill menu-media-status">
           <span class="menu-status-dot" aria-hidden="true"></span>
-          <span>${item.is_available ? "Sotuvda bor" : "Sotuvda yo'q"}</span>
+          <span>${item.is_available ? t("available") : t("unavailable")}</span>
         </span>
       </div>
       <div class="menu-card-body">
@@ -432,14 +618,14 @@ function menuCardTemplate(item) {
           <section class="menu-info-row menu-info-category" aria-label="Category">
             <span class="menu-info-icon">${iconSvg("tag")}</span>
             <span class="menu-info-copy">
-              <span>Category</span>
+              <span>${t("category")}</span>
               <strong>${escapeHtml(categoryName)}</strong>
             </span>
           </section>
           <section class="menu-info-row menu-info-variants" aria-label="Variantlar">
             <span class="menu-info-icon">${iconSvg("layers")}</span>
             <span class="menu-info-copy">
-              <span>Variantlar</span>
+              <span>${t("variants")}</span>
               <span class="menu-option-grid">
                 ${variants
                   .map(
@@ -457,7 +643,7 @@ function menuCardTemplate(item) {
           <section class="menu-info-row menu-info-addons" aria-label="Qo'shimchalar">
             <span class="menu-info-icon">${iconSvg("cloche")}</span>
             <span class="menu-info-copy">
-              <span>Qo'shimchalar</span>
+              <span>${t("addons")}</span>
               <span class="menu-option-grid">
                 ${
                   addons.length
@@ -485,7 +671,7 @@ function menuCardTemplate(item) {
         <button class="menu-view-button" data-menu-view="${item.id}" type="button">
           <span class="menu-view-label">
             ${iconSvg("fileText")}
-            <span>Batafsil</span>
+          <span>${t("details")}</span>
           </span>
           <span class="menu-view-arrow">${iconSvg("arrowRight")}</span>
         </button>
@@ -524,12 +710,12 @@ function openMenuModal(item) {
   menuModalImage.src = imageUrl;
   menuModalImage.alt = item.name;
   menuModalTitle.textContent = item.name;
-  menuModalDescription.textContent = item.description || "Tavsif hozircha yo'q.";
+  menuModalDescription.textContent = item.description || t("descriptionEmpty");
 
   const defaultVariant = selectedVariant(item);
   menuModalVariants.innerHTML = item.variants?.length
     ? `
-      <h3>Variantlar</h3>
+      <h3>${t("variants")}</h3>
       <div class="menu-variant-options">
         ${item.variants
           .map(
@@ -555,7 +741,7 @@ function openMenuModal(item) {
 
   menuModalAddons.innerHTML = item.addon_groups?.length
     ? `
-      <h3>Qo'shimchalar</h3>
+      <h3>${t("addons")}</h3>
       <div class="menu-addon-groups">
         ${item.addon_groups
           .map((group) => {
@@ -598,8 +784,8 @@ languageToggle.addEventListener("click", () => {
   const languages = ["UZ", "RU", "EN"];
   const currentIndex = languages.indexOf(activeLanguage);
   activeLanguage = languages[(currentIndex + 1) % languages.length];
-  languageLabel.textContent = activeLanguage;
-  document.documentElement.lang = activeLanguage.toLowerCase();
+  window.localStorage.setItem("bonbon_language", activeLanguage);
+  applyLanguage();
 });
 
 searchToggle.addEventListener("click", () => {
@@ -608,10 +794,27 @@ searchToggle.addEventListener("click", () => {
 
   if (!isHidden) {
     productSearchInput.focus();
+    return;
+  }
+
+  if (productSearchInput.value) {
+    productSearchInput.value = "";
+    if (isAdmin && isAdminPage) {
+      renderCurrentAdminView();
+      return;
+    }
+    renderMenuGrid();
   }
 });
 
-productSearchInput.addEventListener("input", renderMenuGrid);
+productSearchInput.addEventListener("input", () => {
+  if (isAdmin && isAdminPage) {
+    renderCurrentAdminView();
+    return;
+  }
+
+  renderMenuGrid();
+});
 
 searchBar.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -634,7 +837,15 @@ function hasValidAdminToken() {
   return Boolean(adminAccessToken && adminTokenExpiresAt && Date.now() < adminTokenExpiresAt);
 }
 
+function clearAdminTokenExpiryTimer() {
+  if (adminTokenExpiryTimerId) {
+    window.clearTimeout(adminTokenExpiryTimerId);
+    adminTokenExpiryTimerId = 0;
+  }
+}
+
 function clearAdminToken() {
+  clearAdminTokenExpiryTimer();
   adminAccessToken = "";
   adminTokenExpiresAt = 0;
   isAdmin = false;
@@ -646,9 +857,38 @@ function clearAdminToken() {
 
 function storeAdminToken(token) {
   adminAccessToken = token.access_token;
-  adminTokenExpiresAt = Number(token.expires_at) * 1000;
+  const serverExpiresAt = Number(token.expires_at) * 1000;
+  adminTokenExpiresAt = Math.min(serverExpiresAt, Date.now() + ADMIN_TOKEN_TTL_MS);
   window.localStorage.setItem("bonbon_admin_access_token", adminAccessToken);
   window.localStorage.setItem("bonbon_admin_token_expires_at", String(adminTokenExpiresAt));
+  scheduleAdminTokenExpiry();
+}
+
+function handleAdminAuthExpired(message = "Sessiya tugagan. Admin login va parolni qayta kiriting.") {
+  clearAdminToken();
+  renderProfile({ is_admin: false, user: null });
+
+  if (isAdminPage) {
+    window.location.href = "/login";
+    return;
+  }
+
+  if (isLoginPage) {
+    openLoginSection();
+    loginStatusText.textContent = message;
+  }
+}
+
+function scheduleAdminTokenExpiry() {
+  clearAdminTokenExpiryTimer();
+  if (!hasValidAdminToken()) {
+    return;
+  }
+
+  const delay = Math.max(0, adminTokenExpiresAt - Date.now());
+  adminTokenExpiryTimerId = window.setTimeout(() => {
+    handleAdminAuthExpired();
+  }, delay);
 }
 
 async function openAdminFromToken() {
@@ -728,17 +968,10 @@ adminViewButtons.forEach((button) => {
       return;
     }
 
-    if (button.dataset.adminView === "guests") {
-      window.location.href = "/admin/guests";
-      return;
-    }
-
-    if (window.location.pathname === "/admin/guests") {
-      window.location.href = "/admin";
-      return;
-    }
-
     showAdminPlaceholder(button.dataset.adminView);
+    if (isAdminPage && window.location.pathname !== "/admin") {
+      window.history.replaceState(null, "", "/admin");
+    }
   });
 });
 
@@ -842,6 +1075,10 @@ function authHeaders() {
   return headers;
 }
 
+function isAdminAuthError(response) {
+  return response.status === 401 || response.status === 403;
+}
+
 function requestTelegramContact() {
   if (!telegram?.requestContact) {
     return;
@@ -883,14 +1120,14 @@ function profileLabel(user, hasAdminAccess) {
   }
 
   if (hasAdminAccess) {
-    return "Admin";
+    return t("admin");
   }
 
   if (hasValidAdminToken()) {
-    return "Login";
+    return t("login");
   }
 
-  return "Login";
+  return t("login");
 }
 
 function renderProfile(me = { is_admin: false, user: null }) {
@@ -925,90 +1162,27 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-function loadImage(file) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    const objectUrl = URL.createObjectURL(file);
-    image.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      resolve(image);
-    };
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error("Rasmni o'qib bo'lmadi."));
-    };
-    image.src = objectUrl;
-  });
-}
+async function uploadImageFile(file) {
+  if (!file) {
+    throw new Error("Rasm fayli tanlanmadi.");
+  }
 
-function canvasToBlob(canvas, type, quality) {
-  return new Promise((resolve) => {
-    canvas.toBlob(
-      (blob) => {
-        resolve(blob);
-      },
-      type,
-      quality,
-    );
-  });
-}
-
-async function imageFileToOptimizedBlob(file) {
   if (file.size > 8 * 1024 * 1024) {
     throw new Error("Rasm 8 MB dan katta bo'lmasin.");
-  }
-
-  const image = await loadImage(file);
-  const canvas = document.createElement("canvas");
-  const context = canvas.getContext("2d");
-  const maxUploadBytes = 240000;
-  const sizes = [900, 760, 640, 520, 420];
-  const qualities = [0.82, 0.74, 0.66, 0.58, 0.5];
-  const outputTypes = ["image/webp", "image/jpeg"];
-  let fallbackBlob = null;
-
-  for (const maxSize of sizes) {
-    const scale = Math.min(1, maxSize / Math.max(image.naturalWidth, image.naturalHeight));
-    const width = Math.max(1, Math.round(image.naturalWidth * scale));
-    const height = Math.max(1, Math.round(image.naturalHeight * scale));
-    canvas.width = width;
-    canvas.height = height;
-    context.fillStyle = "#fff";
-    context.fillRect(0, 0, width, height);
-    context.drawImage(image, 0, 0, width, height);
-
-    for (const type of outputTypes) {
-      for (const quality of qualities) {
-        const blob = await canvasToBlob(canvas, type, quality);
-        if (!blob) {
-          continue;
-        }
-
-        fallbackBlob = blob;
-        if (blob.type === type && blob.size <= maxUploadBytes) {
-          return blob;
-        }
-      }
-    }
-  }
-
-  return fallbackBlob;
-}
-
-async function uploadImageFile(file) {
-  const blob = await imageFileToOptimizedBlob(file);
-  if (!blob) {
-    throw new Error("Rasmni optimizatsiya qilib bo'lmadi.");
   }
 
   const response = await fetch("/api/admin/uploads/images", {
     method: "POST",
     headers: {
-      "Content-Type": blob.type || "image/jpeg",
+      "Content-Type": file.type || "application/octet-stream",
       ...authHeaders(),
     },
-    body: blob,
+    body: file,
   });
+
+  if (isAdminAuthError(response)) {
+    handleAdminAuthExpired();
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
@@ -1027,6 +1201,10 @@ async function adminApi(path, options = {}) {
       ...(options.headers || {}),
     },
   });
+
+  if (isAdminAuthError(response)) {
+    handleAdminAuthExpired();
+  }
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
@@ -1118,8 +1296,8 @@ function renderField(field, item) {
   if (field.name === "image_url") {
     return `
       <label class="image-upload-field">${field.label}
-        <input ${commonAttrs} type="url" placeholder="https://... yoki rasm yuklang" value="${escapeHtml(value)}" />
-        <input class="image-upload-input" type="file" data-image-upload-for="${field.name}" />
+        <input ${commonAttrs} type="text" inputmode="url" placeholder="https://... yoki rasm yuklang" value="${escapeHtml(value)}" />
+        <input class="image-upload-input" type="file" accept="image/*,.heic,.heif,.webp,.avif" data-image-upload-for="${field.name}" />
         <span class="image-upload-hint">Rasm tanlang. Tizim format/kengaytmadan qat'i nazar uni o'qib, kichraytirib WebP yoki JPEG fayl sifatida saqlaydi.</span>
         ${
           value
@@ -1163,17 +1341,18 @@ function payloadFromForm(form, fields) {
 function renderCrudForm(type, item = null) {
   const config = crudConfigs[type];
   const id = item?.id || "";
+  const actionText = item ? t("edit") : t("recordNew");
   return `
     <form class="admin-crud-form" data-crud-type="${type}" data-id="${escapeHtml(id)}">
       <div class="crud-form-head">
-        <strong>${item ? "Tahrirlash" : "Yangi yozuv"}: ${config.title}</strong>
-        ${item ? `<button class="text-button" data-cancel-edit="${type}" type="button">Bekor</button>` : ""}
+        <strong>${actionText}: ${crudTitle(type)}</strong>
+        ${item ? `<button class="text-button" data-cancel-edit="${type}" type="button">${t("cancel")}</button>` : ""}
       </div>
       <div class="crud-form-grid">
         ${config.fields.map((field) => renderField(field, item)).join("")}
       </div>
       <button class="primary-button admin-save-button" type="submit">
-        ${item ? "Saqlash" : "Qo'shish"}
+        ${item ? t("save") : t("add")}
       </button>
     </form>
   `;
@@ -1182,8 +1361,8 @@ function renderCrudForm(type, item = null) {
 function renderCrudActions(type, item) {
   return `
     <div class="crud-actions">
-      <button class="status-button" data-edit-type="${type}" data-edit-id="${item.id}" type="button">Edit</button>
-      <button class="status-button danger" data-delete-type="${type}" data-delete-id="${item.id}" type="button">Delete</button>
+      <button class="status-button" data-edit-type="${type}" data-edit-id="${item.id}" type="button">${t("editButton")}</button>
+      <button class="status-button danger" data-delete-type="${type}" data-delete-id="${item.id}" type="button">${t("deleteButton")}</button>
     </div>
   `;
 }
@@ -1196,7 +1375,7 @@ const crudConfigs = {
     fields: [
       { name: "name", label: "Nomi", required: true },
       { name: "description", label: "Izoh", type: "textarea" },
-      { name: "image_url", label: "Rasm URL" },
+      { name: "image_url", label: "Rasm URL yoki fayl" },
       { name: "sort_order", label: "Tartib", type: "number", default: 0 },
       { name: "is_active", label: "Aktiv", type: "checkbox", default: true },
     ],
@@ -1231,7 +1410,7 @@ const crudConfigs = {
       { name: "name", label: "Nomi", required: true },
       { name: "description", label: "Izoh", type: "textarea" },
       { name: "base_price", label: "Asosiy narx", type: "number", default: 0 },
-      { name: "image_url", label: "Rasm URL" },
+      { name: "image_url", label: "Rasm URL yoki fayl" },
       { name: "sort_order", label: "Tartib", type: "number", default: 0 },
       { name: "preparation_time_minutes", label: "Tayyorlash min.", type: "number" },
       { name: "calories", label: "Kaloriya", type: "number" },
@@ -1388,6 +1567,19 @@ const crudConfigs = {
   },
 };
 
+const crudTitleKeys = {
+  categories: "categories",
+  items: "items",
+  variants: "variantsAdmin",
+  addons: "addonsAdmin",
+  addonGroups: "addonGroups",
+  addonLinks: "addonLinks",
+};
+
+function crudTitle(type) {
+  return t(crudTitleKeys[type]) || crudConfigs[type]?.title || type;
+}
+
 async function loadCrudDependency(name) {
   if (name === "categories") {
     adminCache.categories = await adminApi("/api/admin/categories");
@@ -1406,6 +1598,54 @@ async function loadCrudDependency(name) {
   }
 }
 
+function renderCrudList(type, editingItem = activeCrudEditingItem) {
+  const config = crudConfigs[type];
+  const items = adminCache[type] || [];
+  const term = currentSearchTerm();
+  const filteredItems = items.filter((item) => matchesSearch(item, term));
+  const emptyText = term ? t("noSearchResults") : t("noRecords");
+
+  document.querySelector(".admin-heading h2").textContent = `${crudTitle(type)} CRUD`;
+  ordersList.innerHTML = `
+    ${renderCrudForm(type, editingItem)}
+    <div class="crud-list">
+      ${
+        filteredItems.length
+          ? filteredItems.map((item) => config.renderItem(item)).join("")
+          : `<p class="order-meta">${emptyText}</p>`
+      }
+    </div>
+  `;
+
+  adminStatusText.textContent = term
+    ? `${crudTitle(type)}: ${filteredItems.length}/${items.length}`
+    : `${crudTitle(type)}: ${items.length}`;
+}
+
+function renderGuestsList() {
+  const guests = adminCache.guests || [];
+  const term = currentSearchTerm();
+  const filteredGuests = guests.filter((guest) => matchesSearch(guest, term));
+  document.querySelector(".admin-heading h2").textContent = t("guests");
+  ordersList.innerHTML = filteredGuests.length
+    ? guestsTableTemplate(filteredGuests)
+    : `<p class="order-meta">${term ? t("noSearchResults") : t("noGuests")}</p>`;
+  adminStatusText.textContent = term
+    ? `${t("guestsCount")}: ${filteredGuests.length}/${guests.length}`
+    : `${t("guestsCount")}: ${guests.length}`;
+}
+
+function renderCurrentAdminView() {
+  if (activeAdminView === "guests") {
+    renderGuestsList();
+    return;
+  }
+
+  if (activeCrudType) {
+    renderCrudList(activeCrudType);
+  }
+}
+
 async function loadCrudView(type, editingItem = null) {
   if (!isAdmin) {
     return;
@@ -1413,9 +1653,11 @@ async function loadCrudView(type, editingItem = null) {
 
   const requestId = ++activeCrudRequestId;
   const config = crudConfigs[type];
-  document.querySelector(".admin-heading h2").textContent = config.heading;
-  adminStatusText.textContent = `${config.title} yuklanmoqda...`;
-  ordersList.innerHTML = `<p class="order-meta">Yuklanmoqda...</p>`;
+  activeCrudType = type;
+  activeCrudEditingItem = editingItem;
+  document.querySelector(".admin-heading h2").textContent = `${crudTitle(type)} CRUD`;
+  adminStatusText.textContent = `${crudTitle(type)}: ${t("loading")}`;
+  ordersList.innerHTML = `<p class="order-meta">${t("loading")}</p>`;
 
   try {
     for (const dependency of config.dependencies || []) {
@@ -1428,13 +1670,7 @@ async function loadCrudView(type, editingItem = null) {
     }
 
     adminCache[type] = items;
-    ordersList.innerHTML = `
-      ${renderCrudForm(type, editingItem)}
-      <div class="crud-list">
-        ${items.length ? items.map((item) => config.renderItem(item)).join("") : `<p class="order-meta">Hali yozuv yo'q.</p>`}
-      </div>
-    `;
-    adminStatusText.textContent = `${config.title}: ${items.length}`;
+    renderCrudList(type, editingItem);
   } catch (error) {
     adminStatusText.textContent = error.message;
   }
@@ -1615,6 +1851,9 @@ async function loadStats() {
   });
 
   if (!response.ok) {
+    if (isAdminAuthError(response)) {
+      handleAdminAuthExpired();
+    }
     return;
   }
 
@@ -1636,6 +1875,10 @@ async function loadOrders() {
   });
 
   if (!response.ok) {
+    if (isAdminAuthError(response)) {
+      handleAdminAuthExpired();
+      return;
+    }
     adminStatusText.textContent = "Admin ruxsati tekshiruvdan o'tmadi.";
     return;
   }
@@ -1653,25 +1896,28 @@ async function loadGuests() {
     return;
   }
 
-  document.querySelector(".admin-heading h2").textContent = "Mehmonlar";
-  adminStatusText.textContent = "Mehmonlar yuklanmoqda...";
-  ordersList.innerHTML = `<p class="order-meta">Yuklanmoqda...</p>`;
+  activeCrudType = null;
+  activeCrudEditingItem = null;
+  document.querySelector(".admin-heading h2").textContent = t("guests");
+  adminStatusText.textContent = t("guestsLoading");
+  ordersList.innerHTML = `<p class="order-meta">${t("loading")}</p>`;
 
   const response = await fetch("/api/admin/guests", {
     headers: authHeaders(),
   });
 
   if (!response.ok) {
-    adminStatusText.textContent = "Mehmonlarni yuklab bo'lmadi.";
+    if (isAdminAuthError(response)) {
+      handleAdminAuthExpired();
+      return;
+    }
+    adminStatusText.textContent = t("guestsFailed");
     return;
   }
 
   const guests = await response.json();
   adminCache.guests = guests;
-  ordersList.innerHTML = guests.length
-    ? guestsTableTemplate(guests)
-    : `<p class="order-meta">Hali mehmon yo'q.</p>`;
-  adminStatusText.textContent = `Mehmonlar: ${guests.length}`;
+  renderGuestsList();
 }
 
 async function loadAdminCategories() {
@@ -1685,6 +1931,10 @@ async function loadAdminCategories() {
   });
 
   if (!response.ok) {
+    if (isAdminAuthError(response)) {
+      handleAdminAuthExpired();
+      return;
+    }
     adminStatusText.textContent = "Categoriyalarni yuklab bo'lmadi.";
     return;
   }
@@ -1707,6 +1957,10 @@ async function loadAdminMenuItems() {
   });
 
   if (!response.ok) {
+    if (isAdminAuthError(response)) {
+      handleAdminAuthExpired();
+      return;
+    }
     adminStatusText.textContent = "Itemlarni yuklab bo'lmadi.";
     return;
   }
@@ -1729,6 +1983,10 @@ async function updateStatus(orderId, status) {
   });
 
   if (!response.ok) {
+    if (isAdminAuthError(response)) {
+      handleAdminAuthExpired();
+      return;
+    }
     adminStatusText.textContent = "Statusni yangilab bo'lmadi.";
     return;
   }
@@ -1739,6 +1997,8 @@ async function updateStatus(orderId, status) {
 async function checkAdmin() {
   if (adminAccessToken && !hasValidAdminToken()) {
     clearAdminToken();
+  } else {
+    scheduleAdminTokenExpiry();
   }
 
   const response = await fetch("/api/me", {
@@ -1914,5 +2174,6 @@ ordersList.addEventListener("submit", async (event) => {
   }
 });
 
+updateStaticLanguage();
 checkAdmin();
 loadCatalog();
