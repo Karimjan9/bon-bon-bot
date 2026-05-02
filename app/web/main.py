@@ -787,6 +787,7 @@ async def admin_upload_image(
 
     return {
         "url": f"/static/uploads/images/{file_name}",
+        "absolute_url": str(request.url_for("static", path=f"uploads/images/{file_name}")),
         "size": len(optimized_data),
         "content_type": content_type,
     }

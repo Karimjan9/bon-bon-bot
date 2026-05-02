@@ -398,7 +398,7 @@ function isLavashItem(item) {
 
 function menuImageForItem(item) {
   if (item.image_url) {
-    return item.image_url;
+    return imageDisplayUrl(item.image_url);
   }
 
   if (isLavashItem(item)) {
@@ -406,6 +406,35 @@ function menuImageForItem(item) {
   }
 
   return fallbackMenuImage(item);
+}
+
+function imageDisplayUrl(value, cacheBust = false) {
+  if (!value) {
+    return "";
+  }
+
+  try {
+    const url = new URL(String(value), window.location.origin);
+    if (cacheBust) {
+      url.searchParams.set("v", String(Date.now()));
+    }
+    return url.href;
+  } catch {
+    return String(value);
+  }
+}
+
+function adminImageTemplate(value, altText = "") {
+  const src = imageDisplayUrl(value);
+  if (!src) {
+    return "";
+  }
+
+  return `
+    <div class="catalog-admin-media">
+      <img src="${escapeHtml(src)}" alt="${escapeHtml(altText)}" loading="lazy" decoding="async" />
+    </div>
+  `;
 }
 
 function formatMenuMoney(amount) {
@@ -1301,7 +1330,7 @@ function renderField(field, item) {
         <span class="image-upload-hint">Rasm tanlang. Tizim format/kengaytmadan qat'i nazar uni o'qib, kichraytirib WebP yoki JPEG fayl sifatida saqlaydi.</span>
         ${
           value
-            ? `<img class="image-upload-preview" src="${escapeHtml(value)}" alt="" loading="lazy" decoding="async" />`
+            ? `<img class="image-upload-preview" src="${escapeHtml(imageDisplayUrl(value))}" alt="" decoding="async" />`
             : `<img class="image-upload-preview is-hidden" alt="" loading="lazy" decoding="async" />`
         }
       </label>
@@ -1382,6 +1411,7 @@ const crudConfigs = {
     renderItem(item) {
       return `
         <article class="catalog-admin-item">
+          ${adminImageTemplate(item.image_url, item.name)}
           <div class="catalog-admin-topline">
             <p class="order-title">${escapeHtml(item.name)}</p>
             <span class="catalog-badge">${item.is_active ? "active" : "hidden"}</span>
@@ -1422,6 +1452,7 @@ const crudConfigs = {
     renderItem(item) {
       return `
         <article class="catalog-admin-item">
+          ${adminImageTemplate(item.image_url, item.name)}
           <div class="catalog-admin-topline">
             <p class="order-title">${escapeHtml(item.name)}</p>
             <span class="catalog-badge">${escapeHtml(categoryName(item.category_id))}</span>
@@ -2118,10 +2149,18 @@ ordersList.addEventListener("change", async (event) => {
     const upload = await uploadImageFile(fileInput.files[0]);
     targetInput.value = upload.url;
     if (preview) {
-      preview.src = upload.url;
+      preview.onload = () => {
+        adminStatusText.textContent = `Rasm yuklandi (${Math.round(Number(upload.size || 0) / 1024)} KB). Saqlashni bosing.`;
+      };
+      preview.onerror = () => {
+        adminStatusText.textContent = "Rasm yuklandi, lekin preview ochilmadi. Sahifani yangilab ko'ring.";
+      };
+      preview.src = imageDisplayUrl(upload.absolute_url || upload.url, true);
       preview.classList.remove("is-hidden");
     }
-    adminStatusText.textContent = `Rasm yuklandi (${Math.round(Number(upload.size || 0) / 1024)} KB). Saqlashni bosing.`;
+    if (!preview) {
+      adminStatusText.textContent = `Rasm yuklandi (${Math.round(Number(upload.size || 0) / 1024)} KB). Saqlashni bosing.`;
+    }
   } catch (error) {
     adminStatusText.textContent = error.message;
   } finally {

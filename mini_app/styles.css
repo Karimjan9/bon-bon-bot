@@ -1555,6 +1555,22 @@ textarea {
   background: #fff;
 }
 
+.catalog-admin-media {
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--admin-line);
+  border-radius: 12px;
+  background: #f6fff9;
+}
+
+.catalog-admin-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .catalog-admin-topline,
 .catalog-badge-row {
   display: flex;
