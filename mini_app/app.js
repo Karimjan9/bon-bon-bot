@@ -44,9 +44,28 @@ const statNew = document.querySelector("#stat-new");
 const statProcessing = document.querySelector("#stat-processing");
 const statRevenue = document.querySelector("#stat-revenue");
 
-const isLoginPage = window.location.pathname === "/login";
-const isAdminPage = window.location.pathname === "/admin" || window.location.pathname === "/admin/guests";
-const initialAdminView = window.location.pathname === "/admin/guests" ? "guests" : "categories";
+const adminViewRoutes = {
+  guests: "/admin/guests",
+  categories: "/admin/categories",
+  items: "/admin/items",
+  variants: "/admin/variants",
+  "addon-groups": "/admin/addon-groups",
+  addons: "/admin/addons",
+  "addon-links": "/admin/addon-links",
+};
+const adminViewCrudTypes = {
+  categories: "categories",
+  items: "items",
+  variants: "variants",
+  "addon-groups": "addonGroups",
+  addons: "addons",
+  "addon-links": "addonLinks",
+};
+const currentPath = window.location.pathname.replace(/\/+$/, "") || "/";
+const isLoginPage = currentPath === "/login";
+const isAdminPage = currentPath === "/admin" || currentPath.startsWith("/admin/");
+const initialAdminView =
+  Object.entries(adminViewRoutes).find(([, route]) => route === currentPath)?.[0] || "categories";
 const ADMIN_TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
 let adminLoginName = "";
 let adminAccessToken = window.localStorage.getItem("bonbon_admin_access_token") || "";
@@ -55,7 +74,7 @@ let adminTokenExpiryTimerId = 0;
 let isAdmin = false;
 let activeLanguage = window.localStorage.getItem("bonbon_language") || "UZ";
 let activeAdminView = initialAdminView;
-let activeCrudType = initialAdminView === "guests" ? null : initialAdminView;
+let activeCrudType = adminViewCrudTypes[initialAdminView] || null;
 let activeCrudEditingItem = null;
 let activeCrudRequestId = 0;
 let activeMenuCategory = "all";
@@ -954,32 +973,32 @@ function showAdminPlaceholder(view) {
   }
 
   if (view === "categories") {
-    loadCrudView("categories");
+    loadCrudView(adminViewCrudTypes.categories);
     return;
   }
 
   if (view === "items") {
-    loadCrudView("items");
+    loadCrudView(adminViewCrudTypes.items);
     return;
   }
 
   if (view === "variants") {
-    loadCrudView("variants");
+    loadCrudView(adminViewCrudTypes.variants);
     return;
   }
 
   if (view === "addon-groups") {
-    loadCrudView("addonGroups");
+    loadCrudView(adminViewCrudTypes["addon-groups"]);
     return;
   }
 
   if (view === "addons") {
-    loadCrudView("addons");
+    loadCrudView(adminViewCrudTypes.addons);
     return;
   }
 
   if (view === "addon-links") {
-    loadCrudView("addonLinks");
+    loadCrudView(adminViewCrudTypes["addon-links"]);
   }
 }
 
@@ -991,15 +1010,18 @@ if (adminMenuToggle && adminMenuList) {
 }
 
 adminViewButtons.forEach((button) => {
-  button.addEventListener("click", () => {
+  button.addEventListener("click", (event) => {
     if (!isAdmin) {
-      openLoginSection();
+      event.preventDefault();
+      window.location.href = "/login";
       return;
     }
 
-    showAdminPlaceholder(button.dataset.adminView);
-    if (isAdminPage && window.location.pathname !== "/admin") {
-      window.history.replaceState(null, "", "/admin");
+    const route = adminViewRoutes[button.dataset.adminView] || "/admin/categories";
+    if (currentPath === route || (currentPath === "/admin" && button.dataset.adminView === "categories")) {
+      event.preventDefault();
+      showAdminPlaceholder(button.dataset.adminView);
+      return;
     }
   });
 });
@@ -1404,14 +1426,12 @@ const crudConfigs = {
     fields: [
       { name: "name", label: "Nomi", required: true },
       { name: "description", label: "Izoh", type: "textarea" },
-      { name: "image_url", label: "Rasm URL yoki fayl" },
       { name: "sort_order", label: "Tartib", type: "number", default: 0 },
       { name: "is_active", label: "Aktiv", type: "checkbox", default: true },
     ],
     renderItem(item) {
       return `
         <article class="catalog-admin-item">
-          ${adminImageTemplate(item.image_url, item.name)}
           <div class="catalog-admin-topline">
             <p class="order-title">${escapeHtml(item.name)}</p>
             <span class="catalog-badge">${item.is_active ? "active" : "hidden"}</span>
@@ -2070,7 +2090,7 @@ async function checkAdmin() {
       await loadGuests();
       return;
     }
-    await loadCrudView(initialAdminView);
+    await loadCrudView(adminViewCrudTypes[initialAdminView] || "categories");
     return;
   }
 

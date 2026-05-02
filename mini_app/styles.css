@@ -1134,9 +1134,16 @@ h1 {
 }
 
 .admin-bottom-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   min-height: 44px;
+  border: 0;
+  border-radius: 16px;
   padding: 12px;
   color: #0e4d34;
+  text-align: center;
+  text-decoration: none;
   background: #e7f6ee;
 }
 
