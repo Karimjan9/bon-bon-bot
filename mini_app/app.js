@@ -7,6 +7,7 @@ if (telegram) {
 
 const languageToggle = document.querySelector("#language-toggle");
 const languageLabel = document.querySelector("#language-label");
+const themeToggle = document.querySelector("#theme-toggle");
 const searchToggle = document.querySelector("#search-toggle");
 const searchBar = document.querySelector("#search-bar");
 const productSearchInput = document.querySelector("#product-search");
@@ -73,6 +74,7 @@ let adminTokenExpiresAt = Number(window.localStorage.getItem("bonbon_admin_token
 let adminTokenExpiryTimerId = 0;
 let isAdmin = false;
 let activeLanguage = window.localStorage.getItem("bonbon_language") || "UZ";
+let activeTheme = window.localStorage.getItem("bonbon_theme_mode") || "carrot";
 let activeAdminView = initialAdminView;
 let activeCrudType = adminViewCrudTypes[initialAdminView] || null;
 let activeCrudEditingItem = null;
@@ -218,6 +220,32 @@ function t(key) {
   return i18n[activeLanguage]?.[key] || i18n.UZ[key] || key;
 }
 
+function normalizeThemeMode(value) {
+  return value === "mono" ? "mono" : "carrot";
+}
+
+function applyTheme() {
+  activeTheme = normalizeThemeMode(activeTheme);
+  document.body.dataset.theme = activeTheme;
+  window.localStorage.setItem("bonbon_theme_mode", activeTheme);
+
+  if (themeToggle) {
+    const isMono = activeTheme === "mono";
+    themeToggle.setAttribute("aria-pressed", String(isMono));
+    themeToggle.setAttribute(
+      "aria-label",
+      isMono ? "Sabzirang va kulrang modega o'tish" : "Oq va qora modega o'tish",
+    );
+    themeToggle.title = isMono ? "Oq / qora" : "Sabzirang / kulrang";
+  }
+
+  try {
+    telegram?.setHeaderColor?.(activeTheme === "mono" ? "#f7f7f7" : "#ffffff");
+    telegram?.setBackgroundColor?.(activeTheme === "mono" ? "#f7f7f7" : "#f4f4f2");
+  } catch {
+    // Telegram WebView may ignore these methods on older clients.
+  }
+}
 function currentSearchTerm() {
   return productSearchInput.value.trim().toLowerCase();
 }
@@ -828,6 +856,10 @@ function closeMenuModal() {
   menuModal.removeAttribute("data-item-id");
 }
 
+themeToggle?.addEventListener("click", () => {
+  activeTheme = activeTheme === "mono" ? "carrot" : "mono";
+  applyTheme();
+});
 languageToggle.addEventListener("click", () => {
   const languages = ["UZ", "RU", "EN"];
   const currentIndex = languages.indexOf(activeLanguage);
@@ -2233,6 +2265,7 @@ ordersList.addEventListener("submit", async (event) => {
   }
 });
 
+applyTheme();
 updateStaticLanguage();
 checkAdmin();
 loadCatalog();

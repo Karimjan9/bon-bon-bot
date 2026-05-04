@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Bon Bon Mini App</title>
     <link rel="icon" type="image/png" href="/static/assets/logo.png?v=logo-1" />
-    <link rel="stylesheet" href="/static/styles.css?v=admin-pages-1" />
+    <link rel="stylesheet" href="/static/styles.css?v=theme-mode-1" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body>
@@ -16,6 +16,33 @@
         </a>
 
         <div class="header-actions">
+          <button
+            class="theme-switch"
+            id="theme-toggle"
+            type="button"
+            aria-label="Rang mode o'zgartirish"
+            aria-pressed="false"
+            title="Mode"
+          >
+            <span class="theme-switch-track" aria-hidden="true">
+              <span class="theme-switch-icon theme-switch-icon-mono">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 3v18" />
+                  <path d="M12 3a9 9 0 0 0 0 18" />
+                  <path d="M12 3a9 9 0 0 1 0 18" />
+                </svg>
+              </span>
+              <span class="theme-switch-icon theme-switch-icon-carrot">
+                <svg viewBox="0 0 24 24">
+                  <path d="M6 15c2-5 5.7-8.7 10.7-10.7L20 7.6C18 12.6 14.3 16.3 9.3 18.3L6 15Z" />
+                  <path d="m15.5 4.5 2.7-2.2" />
+                  <path d="m18 7 3-1" />
+                  <path d="M8 16 4 20" />
+                </svg>
+              </span>
+              <span class="theme-switch-knob"></span>
+            </span>
+          </button>
           <button class="icon-button" id="language-toggle" type="button" aria-label="Tilni o'zgartirish">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <path d="M5 4h8M9 4v3m5 0H4m2 0c.8 2.8 2.4 5.1 5 7m-3.5 0c2.1-1.4 3.7-3.6 4.5-7M13 20l4-9 4 9m-6.7-3h5.4" />
@@ -167,6 +194,6 @@
       </section>
     </main>
 
-    <script src="/static/app.js?v=admin-pages-1"></script>
+    <script src="/static/app.js?v=theme-mode-1"></script>
   </body>
 </html>
