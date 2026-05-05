@@ -234,14 +234,14 @@ function applyTheme() {
     themeToggle.setAttribute("aria-pressed", String(isMono));
     themeToggle.setAttribute(
       "aria-label",
-      isMono ? "Sabzirang va kulrang modega o'tish" : "Oq va qora modega o'tish",
+      isMono ? "Sabzirang modega o'tish" : "Kulrang modega o'tish",
     );
-    themeToggle.title = isMono ? "Oq / qora" : "Sabzirang / kulrang";
+    themeToggle.title = isMono ? "Kulrang" : "Sabzirang";
   }
 
   try {
-    telegram?.setHeaderColor?.(activeTheme === "mono" ? "#f7f7f7" : "#ffffff");
-    telegram?.setBackgroundColor?.(activeTheme === "mono" ? "#f7f7f7" : "#f4f4f2");
+    telegram?.setHeaderColor?.(activeTheme === "mono" ? "#2f343d" : "#fffaf5");
+    telegram?.setBackgroundColor?.(activeTheme === "mono" ? "#242a33" : "#fff3e8");
   } catch {
     // Telegram WebView may ignore these methods on older clients.
   }
