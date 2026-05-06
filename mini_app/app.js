@@ -62,11 +62,38 @@ const adminViewCrudTypes = {
   addons: "addons",
   "addon-links": "addonLinks",
 };
-const currentPath = window.location.pathname.replace(/\/+$/, "") || "/";
-const isLoginPage = currentPath === "/login";
-const isAdminPage = currentPath === "/admin" || currentPath.startsWith("/admin/");
-const initialAdminView =
-  Object.entries(adminViewRoutes).find(([, route]) => route === currentPath)?.[0] || "categories";
+
+function normalizedPathname() {
+  return window.location.pathname.replace(/\/+$/, "") || "/";
+}
+
+function isKnownAdminView(view) {
+  return Object.prototype.hasOwnProperty.call(adminViewRoutes, view);
+}
+
+function adminViewFromPath(path = normalizedPathname()) {
+  return Object.entries(adminViewRoutes).find(([, route]) => route === path)?.[0] || "categories";
+}
+
+function adminViewFromLocation() {
+  const queryView = new URLSearchParams(window.location.search).get("view");
+  if (queryView && isKnownAdminView(queryView)) {
+    return queryView;
+  }
+  return adminViewFromPath();
+}
+
+function adminUrlForView(view) {
+  if (view === "categories") {
+    return "/admin";
+  }
+  return `/admin?view=${encodeURIComponent(view)}`;
+}
+
+const initialPath = normalizedPathname();
+const isLoginPage = initialPath === "/login";
+const isAdminPage = initialPath === "/admin" || initialPath.startsWith("/admin/");
+const initialAdminView = adminViewFromLocation();
 const ADMIN_TOKEN_TTL_MS = 6 * 60 * 60 * 1000;
 let adminLoginName = "";
 let adminAccessToken = window.localStorage.getItem("bonbon_admin_access_token") || "";
@@ -1034,6 +1061,18 @@ function showAdminPlaceholder(view) {
   }
 }
 
+function openAdminView(view, updateHistory = true) {
+  if (!isKnownAdminView(view)) {
+    return;
+  }
+
+  if (updateHistory && adminViewFromLocation() !== view) {
+    window.history.pushState({ adminView: view }, "", adminUrlForView(view));
+  }
+
+  showAdminPlaceholder(view);
+}
+
 if (adminMenuToggle && adminMenuList) {
   adminMenuToggle.addEventListener("click", () => {
     const isCollapsed = adminMenuList.classList.toggle("is-collapsed");
@@ -1049,13 +1088,22 @@ adminViewButtons.forEach((button) => {
       return;
     }
 
-    const route = adminViewRoutes[button.dataset.adminView] || "/admin/categories";
-    if (currentPath === route || (currentPath === "/admin" && button.dataset.adminView === "categories")) {
-      event.preventDefault();
-      showAdminPlaceholder(button.dataset.adminView);
-      return;
-    }
+    event.preventDefault();
+    openAdminView(button.dataset.adminView);
   });
+});
+
+window.addEventListener("popstate", () => {
+  if (!isAdmin) {
+    return;
+  }
+
+  const path = normalizedPathname();
+  if (path !== "/admin" && !path.startsWith("/admin/")) {
+    return;
+  }
+
+  openAdminView(adminViewFromLocation(), false);
 });
 
 userLoginToggle.addEventListener("pointerenter", () => {
