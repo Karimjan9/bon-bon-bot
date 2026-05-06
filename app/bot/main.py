@@ -2,9 +2,14 @@ import asyncio
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import Command, CommandStart
-from aiogram.types import Message, ReplyKeyboardRemove
+from aiogram.types import MenuButtonDefault, MenuButtonWebApp, Message, ReplyKeyboardRemove, WebAppInfo
 
-from app.bot.keyboards import contact_request_keyboard, language_keyboard, menu_inline_keyboard
+from app.bot.keyboards import (
+    contact_request_keyboard,
+    is_https_url,
+    language_keyboard,
+    menu_inline_keyboard,
+)
 from app.config import get_settings
 from app.db.migrations import ensure_schema_ready
 from app.db.session import async_session_factory
@@ -97,6 +102,19 @@ BOT_DESCRIPTION = (
 async def configure_bot_profile(bot: Bot) -> None:
     await bot.set_my_description(description=BOT_DESCRIPTION)
     await bot.set_my_short_description(short_description=BOT_SHORT_DESCRIPTION)
+
+
+async def configure_chat_menu_button(bot: Bot, web_app_url: str) -> None:
+    if is_https_url(web_app_url):
+        await bot.set_chat_menu_button(
+            menu_button=MenuButtonWebApp(
+                text="BON-BON",
+                web_app=WebAppInfo(url=web_app_url),
+            )
+        )
+        return
+
+    await bot.set_chat_menu_button(menu_button=MenuButtonDefault())
 
 
 @router.message(CommandStart())
@@ -192,6 +210,7 @@ async def main() -> None:
 
     bot = Bot(token=settings.bot_token)
     await configure_bot_profile(bot)
+    await configure_chat_menu_button(bot, settings.web_app_url)
 
     dispatcher = Dispatcher()
     dispatcher.include_router(router)
