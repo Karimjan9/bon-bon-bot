@@ -1,0 +1,17 @@
+[Unit]
+Description=Bon Bon Bot FastAPI web service
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/srv/bon-bon-bot
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/srv/bon-bon-bot/.venv/bin/uvicorn app.web.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+

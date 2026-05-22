@@ -1,0 +1,226 @@
+import asyncio
+
+from aiogram import Bot, Dispatcher, F, Router
+from aiogram.filters import Command, CommandStart
+from aiogram.types import MenuButtonDefault, MenuButtonWebApp, Message, ReplyKeyboardRemove, WebAppInfo
+
+from app.bot.keyboards import (
+    contact_request_keyboard,
+    is_https_url,
+    language_keyboard,
+    menu_inline_keyboard,
+)
+from app.config import get_settings
+from app.db.migrations import ensure_schema_ready
+from app.db.session import async_session_factory
+from app.services.guests import upsert_guest_contact
+
+router = Router()
+USER_LANGUAGE_CODES: dict[int, str] = {}
+
+LANGUAGE_BY_BUTTON = {
+    "🇺🇿 O'zbek": "uz",
+    "🇷🇺 Русский": "ru",
+    "🇬🇧 English": "en",
+}
+LANGUAGE_BUTTONS = set(LANGUAGE_BY_BUTTON)
+
+TEXTS = {
+    "uz": {
+        "language_selected": "Til muvaffaqiyatli tanlandi!",
+        "ask_contact": "Menyuni ko'rish uchun kontaktingizni ulashing.",
+        "contact_button": "Kontaktni ulashish",
+        "contact_saved": "Kontakt saqlandi!",
+        "open_menu_prompt": "Menyuni ko'rish uchun pastdagi tugmani bosing.",
+        "menu_button": "Menyuni ko'rish",
+    },
+    "ru": {
+        "language_selected": "Язык успешно выбран!",
+        "ask_contact": "Чтобы посмотреть меню, поделитесь контактом.",
+        "contact_button": "Поделиться контактом",
+        "contact_saved": "Контакт сохранён!",
+        "open_menu_prompt": "Чтобы посмотреть меню, нажмите кнопку ниже.",
+        "menu_button": "Посмотреть меню",
+    },
+    "en": {
+        "language_selected": "Language selected successfully!",
+        "ask_contact": "Share your contact to view the menu.",
+        "contact_button": "Share contact",
+        "contact_saved": "Contact saved!",
+        "open_menu_prompt": "Tap the button below to view the menu.",
+        "menu_button": "View menu",
+    },
+}
+
+BOT_DESCRIPTION = (
+    "ВЫ МОЖЕТЕ ЗАКАЗАТЬ:\n"
+    "🍦🍨🍧 Итальянское мороженое GIOTTO\n"
+    "🥐🧇 Вафли льежские и бельгийские\n"
+    "🥮🍰🍩 Пирожные\n"
+    "🍞🥖🥨 Хлеб в ассортименте\n"
+    "🍔🥪 Бургеры\n"
+    "🍝🥗🍲 Пасты и горячие блюда\n"
+    "🥗🥙 Салаты и сэндвичи\n"
+    "☕️🍷 Кофе и напитки\n\n"
+    "СЛУЖБА ДОСТАВКИ:\n"
+    "⏰ 10:00-22:00\n"
+    "📩 @Giottouz_bot\n"
+    "☎️ +99890 010 2972"
+)
+
+BOT_SHORT_DESCRIPTION = (
+    "GIOTTO: мороженое, десерты, выпечка, бургеры, паста, кофе и напитки с доставкой."
+)
+
+
+BOT_DESCRIPTION = (
+    "BON-BON premium menyusi:\n"
+    "🍫 Mualliflik bonbonlari\n"
+    "🎂 Nafis tort va desertlar\n"
+    "🎁 Sovga uchun shirin toplamlari\n"
+    "🥐 Fresh pastry va non mahsulotlari\n"
+    "☕ Coffee va premium ichimliklar\n"
+    "🚚 Yetkazib berish: 10:00-22:00\n"
+    "💬 Bot: @bonik_testbot"
+)
+
+BOT_SHORT_DESCRIPTION = (
+    "BON-BON: premium bonbonlar, desertlar, tortlar va sovga toplamlari."
+)
+
+BOT_DESCRIPTION = (
+    "BON-BON premium menyusi:\n"
+    "Mualliflik bonbonlari\n"
+    "Nafis tort va desertlar\n"
+    "Sovga uchun shirin toplamlari\n"
+    "Fresh pastry va non mahsulotlari\n"
+    "Coffee va premium ichimliklar\n"
+    "Bot: @bonik_testbot"
+)
+
+
+async def configure_bot_profile(bot: Bot) -> None:
+    await bot.set_my_description(description=BOT_DESCRIPTION)
+    await bot.set_my_short_description(short_description=BOT_SHORT_DESCRIPTION)
+
+
+async def configure_chat_menu_button(bot: Bot, web_app_url: str) -> None:
+    if is_https_url(web_app_url):
+        await bot.set_chat_menu_button(
+            menu_button=MenuButtonWebApp(
+                text="BON-BON",
+                web_app=WebAppInfo(url=web_app_url),
+            )
+        )
+        return
+
+    await bot.set_chat_menu_button(menu_button=MenuButtonDefault())
+
+
+@router.message(CommandStart())
+async def start_handler(message: Message) -> None:
+    await message.answer(
+        "Kerakli tilni tanlang",
+        reply_markup=language_keyboard(),
+    )
+
+
+@router.message(F.contact)
+async def contact_handler(message: Message) -> None:
+    if message.from_user is None or message.contact is None:
+        return
+
+    settings = get_settings()
+    language_code = USER_LANGUAGE_CODES.get(message.from_user.id, "uz")
+    texts = TEXTS[language_code]
+    async with async_session_factory() as session:
+        await upsert_guest_contact(
+            session=session,
+            telegram_user=message.from_user,
+            contact=message.contact,
+            selected_language_code=language_code,
+        )
+    await message.answer(
+        texts["contact_saved"],
+        reply_markup=ReplyKeyboardRemove(),
+    )
+    await message.answer(
+        texts["open_menu_prompt"],
+        reply_markup=menu_inline_keyboard(
+            settings.web_app_url,
+            texts["menu_button"],
+        ),
+    )
+
+
+@router.message(F.text.in_(LANGUAGE_BUTTONS))
+async def language_handler(message: Message) -> None:
+    language_code = LANGUAGE_BY_BUTTON.get(message.text, "uz")
+    if message.from_user is not None:
+        USER_LANGUAGE_CODES[message.from_user.id] = language_code
+    texts = TEXTS[language_code]
+    await message.answer(
+        texts["language_selected"],
+        reply_markup=ReplyKeyboardRemove(),
+    )
+    await message.answer(
+        texts["ask_contact"],
+        reply_markup=contact_request_keyboard(texts["contact_button"]),
+    )
+
+
+@router.message(F.web_app_data)
+async def web_app_data_handler(message: Message) -> None:
+    await message.answer(
+        "Mini ilova faqat menyuni ko'rish uchun ishlaydi. Buyurtma qabul qilinmaydi."
+    )
+
+
+@router.message(F.text.casefold() == "yordam")
+async def help_handler(message: Message) -> None:
+    settings = get_settings()
+    await message.answer(
+        "Bot buyruqlari:\n"
+        "/start - til tanlash tugmalarini chiqaradi\n"
+        "/id - Telegram ID raqamingizni ko'rsatadi\n"
+        "Menyuni ko'rish - web appni Telegram ichida ochadi\n\n"
+        f"Hozirgi WEB_APP_URL: {settings.web_app_url}"
+    )
+
+
+@router.message(Command("id"))
+async def id_handler(message: Message) -> None:
+    if message.from_user is None:
+        await message.answer("Telegram ID topilmadi.")
+        return
+
+    await message.answer(f"Sizning Telegram ID raqamingiz: {message.from_user.id}")
+
+
+async def main() -> None:
+    settings = get_settings()
+    if not settings.bot_token:
+        raise RuntimeError("BOT_TOKEN .env faylida ko'rsatilmagan.")
+
+    schema_result = await ensure_schema_ready()
+    if schema_result.migrated:
+        print("MySQL schema migratsiya qilindi.")
+    else:
+        print("MySQL schema tayyor, migration skip qilindi.")
+
+    bot = Bot(token=settings.bot_token)
+    await configure_bot_profile(bot)
+    await configure_chat_menu_button(bot, settings.web_app_url)
+
+    dispatcher = Dispatcher()
+    dispatcher.include_router(router)
+
+    await bot.delete_webhook(drop_pending_updates=True)
+    await dispatcher.start_polling(
+        bot,
+        allowed_updates=dispatcher.resolve_used_update_types(),
+    )
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
